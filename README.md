@@ -1,15 +1,14 @@
 # 02-Team Repo
-Template for team repo
 
 <p align="center">
-<img src="./images/thisismyteam.png" width="50%">
+<img src="./images/team_9_9-4.png" width="50%">
 </p>
 <p align="center">
 This is my team
 </p>
 
 ## Team links
-- [Team Google Drive]()
+- [Team Google Drive](https://drive.google.com/drive/folders/1uDh5uxmoZppGSzFuEcW462L6dL4mUN0_?usp=drive_link)
 
 ## Course links
 - [ECE Senior Design Piazza Site](https://piazza.com/bu/fall2025/ec463/home)
