@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200112L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>  // For clock_gettime
 
 #include "config.h"
 #include "md.h"
@@ -11,6 +14,21 @@
 #include "neighbor_list.h"
 
 #define MAX_ATOMS 50000
+
+// ----------------------------------------------------
+// Time measurement by clock_gettime()
+// ----------------------------------------------------
+double interval(struct timespec start, struct timespec end)
+{
+    struct timespec temp;
+    temp.tv_sec = end.tv_sec - start.tv_sec;
+    temp.tv_nsec = end.tv_nsec - start.tv_nsec;
+    if (temp.tv_nsec < 0) {
+        temp.tv_sec = temp.tv_sec - 1;
+        temp.tv_nsec = temp.tv_nsec + 1000000000;
+    }
+    return (((double)temp.tv_sec) + ((double)temp.tv_nsec) * 1.0e-9);
+}
 
 // ----------------------------------------------------
 // Helper: copy particle array
@@ -110,7 +128,7 @@ int main(int argc, char **argv)
     copy_particles(p_nbl,  p0, (size_t)N);
 
     // ------------------------------------------------
-    // 4. FULL O(N^2) MD
+    // 4. FULL O(N^2) MD - WITH TIMING
     // ------------------------------------------------
     printf("\n================ FULL O(N^2) MD ================\n");
 
@@ -119,6 +137,11 @@ int main(int argc, char **argv)
         free(p0); free(p_full); free(p_cell); free(p_nbl);
         return 1;
     }
+
+    struct timespec time_start, time_stop;
+    
+    // Start timing for FULL
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     // initial forces
     (void) md_compute_forces_full(p_full, &sp);
@@ -129,12 +152,16 @@ int main(int argc, char **argv)
         fprintf(f_full, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
+    // End timing for FULL
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_full = interval(time_start, time_stop);
+
     fclose(f_full);
     io_write_pdb("output/full_positions.pdb", p_full, (size_t)N);
-    printf("FULL MD done. Output: output/full_energies.csv, output/full_positions.pdb\n");
+    printf("FULL MD done. Time: %.6f seconds\n", time_full);
 
     // ------------------------------------------------
-    // 5. CELL-LIST MD
+    // 5. CELL-LIST MD - WITH TIMING
     // ------------------------------------------------
     printf("\n================ CELL-LIST MD ================\n");
 
@@ -143,6 +170,9 @@ int main(int argc, char **argv)
         free(p0); free(p_full); free(p_cell); free(p_nbl);
         return 1;
     }
+
+    // Start timing for CELL-LIST
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     CellList cl;
     cell_list_init(&cl, (size_t)N, sp.L, sp.rc);
@@ -155,12 +185,16 @@ int main(int argc, char **argv)
         fprintf(f_cell, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
+    // End timing for CELL-LIST
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_cell = interval(time_start, time_stop);
+
     fclose(f_cell);
     io_write_pdb("output/cell_positions.pdb", p_cell, (size_t)N);
-    printf("CELL-LIST MD done. Output: output/cell_energies.csv, output/cell_positions.pdb\n");
+    printf("CELL-LIST MD done. Time: %.6f seconds\n", time_cell);
 
     // ------------------------------------------------
-    // 6. NEIGHBOR-LIST MD
+    // 6. NEIGHBOR-LIST MD - WITH TIMING
     // ------------------------------------------------
     printf("\n================ NEIGHBOR-LIST MD ================\n");
 
@@ -169,6 +203,9 @@ int main(int argc, char **argv)
         free(p0); free(p_full); free(p_cell); free(p_nbl);
         return 1;
     }
+
+    // Start timing for NEIGHBOR-LIST
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     // Cell list for NBL
     CellList cl2;
@@ -189,9 +226,127 @@ int main(int argc, char **argv)
         fprintf(f_nbl, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
+    // End timing for NEIGHBOR-LIST
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_nbl = interval(time_start, time_stop);
+
     fclose(f_nbl);
     io_write_pdb("output/nbl_positions.pdb", p_nbl, (size_t)N);
-    printf("NEIGHBOR-LIST MD done. Output: output/nbl_energies.csv, output/nbl_positions.pdb\n");
+    printf("NEIGHBOR-LIST MD done. Time: %.6f seconds\n", time_nbl);
+
+    // ------------------------------------------------
+    // 7. COMPARE TIMES AND DETERMINE FASTEST
+    // ------------------------------------------------
+    printf("\n========================================\n");
+    printf("PERFORMANCE COMPARISON\n");
+    printf("========================================\n");
+    printf("FULL O(N^2):     %.6f seconds (%.2fx speedup)\n", 
+           time_full, time_full/time_full);
+    printf("CELL-LIST:       %.6f seconds (%.2fx speedup)\n", 
+           time_cell, time_full/time_cell);
+    printf("NEIGHBOR-LIST:   %.6f seconds (%.2fx speedup)\n", 
+           time_nbl, time_full/time_nbl);
+    printf("========================================\n");
+
+    // Determine fastest
+    const char *fastest_name;
+    int fastest_method;
+    double fastest_time = time_full;
+    
+    fastest_method = 0;
+    fastest_name = "FULL O(N^2)";
+    
+    if (time_cell < fastest_time) {
+        fastest_time = time_cell;
+        fastest_method = 1;
+        fastest_name = "CELL-LIST";
+    }
+    if (time_nbl < fastest_time) {
+        fastest_time = time_nbl;
+        fastest_method = 2;
+        fastest_name = "NEIGHBOR-LIST";
+    }
+
+    printf("\nFASTEST METHOD: %s (%.6f seconds)\n", fastest_name, fastest_time);
+
+    // ------------------------------------------------
+    // 8. RUN FULL SIMULATION WITH FASTEST METHOD
+    // ------------------------------------------------
+    printf("\n========================================\n");
+    printf("RUNNING FULL SIMULATION WITH: %s\n", fastest_name);
+    printf("========================================\n");
+
+    // Reset to initial conditions for final run
+    Particle *p_final = malloc(N * sizeof(Particle));
+    copy_particles(p_final, p0, (size_t)N);
+
+    FILE *f_final = open_energy_csv("output/final_energies.csv");
+    if (!f_final) {
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_final);
+        return 1;
+    }
+
+    // Start timing for final run
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+
+    if (fastest_method == 0) {
+        // FULL O(N^2)
+        (void) md_compute_forces_full(p_final, &sp);
+        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_full(p_final, &sp, &K);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+    }
+    else if (fastest_method == 1) {
+        // CELL-LIST
+        CellList cl_final;
+        cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&cl_final, p_final, sp.L);
+        (void) md_compute_forces_cell(p_final, &sp, &cl_final);
+        
+        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_cell(p_final, &sp, &cl_final, &K);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+        
+        free(cl_final.counts);
+        free(cl_final.cells);
+    }
+    else if (fastest_method == 2) {
+        // NEIGHBOR-LIST
+        CellList cl_final;
+        cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&cl_final, p_final, sp.L);
+        
+        NeighborList nl_final;
+        nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
+        nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
+        (void) md_compute_forces_nbl(p_final, &sp, &nl_final);
+        
+        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_nbl(p_final, &sp, &nl_final, &cl_final, &K);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+        
+        free(cl_final.counts);
+        free(cl_final.cells);
+        free(nl_final.nb);
+        free(nl_final.nb_index);
+        free(nl_final.prev);
+    }
+
+    // End timing for final run
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_final = interval(time_start, time_stop);
+
+    fclose(f_final);
+    io_write_pdb("output/final_positions.pdb", p_final, (size_t)N);
+
+    printf("Final simulation complete. Time: %.6f seconds\n", time_final);
+    printf("Output: output/final_energies.csv, output/final_positions.pdb\n");
 
     // ------------------------------------------------
     // Cleanup
@@ -200,6 +355,7 @@ int main(int argc, char **argv)
     free(p_full);
     free(p_cell);
     free(p_nbl);
+    free(p_final);
 
     printf("\nAll simulations complete.\n");
     return 0;
