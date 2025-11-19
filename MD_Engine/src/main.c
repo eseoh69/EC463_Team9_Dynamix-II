@@ -66,6 +66,8 @@ int main(int argc, char **argv)
 
     const char *pdb_path = argv[1];
 
+    printf("\n================ INITIALIZING SIMULATION ================\n");
+    
     // ------------------------------------------------
     // 1. Read PDB
     // ------------------------------------------------
@@ -107,7 +109,7 @@ int main(int argc, char **argv)
 
     printf("Simulation box L = %.3f\n", sp.L);
     printf("rc = %.3f, dt = %.5f, steps = %d\n",
-           sp.rc, sp.dt, CONF_N_TIMESTEPS);
+           sp.rc, sp.dt, AUTOTUNE_N_TIMESTEPS);
 
     // ------------------------------------------------
     // 3. Make copies for each MD method
@@ -127,6 +129,7 @@ int main(int argc, char **argv)
     copy_particles(p_cell, p0, (size_t)N);
     copy_particles(p_nbl,  p0, (size_t)N);
 
+    printf("\n================ BEGINNING AUTOTUNING ================");
     // ------------------------------------------------
     // 4. FULL O(N^2) MD - WITH TIMING
     // ------------------------------------------------
@@ -146,7 +149,7 @@ int main(int argc, char **argv)
     // initial forces
     (void) md_compute_forces_full(p_full, &sp);
 
-    for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
         double K, U;
         U = md_integrate_full(p_full, &sp, &K);
         fprintf(f_full, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
@@ -179,7 +182,7 @@ int main(int argc, char **argv)
     cell_list_build(&cl, p_cell, sp.L);
     (void) md_compute_forces_cell(p_cell, &sp, &cl);
 
-    for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
         double K, U;
         U = md_integrate_cell(p_cell, &sp, &cl, &K);
         fprintf(f_cell, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
@@ -220,7 +223,7 @@ int main(int argc, char **argv)
     // initial forces via NBL
     (void) md_compute_forces_nbl(p_nbl, &sp, &nl);
 
-    for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
         double K, U;
         U = md_integrate_nbl(p_nbl, &sp, &nl, &cl2, &K);
         fprintf(f_nbl, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
@@ -273,8 +276,8 @@ int main(int argc, char **argv)
     // 8. RUN FULL SIMULATION WITH FASTEST METHOD
     // ------------------------------------------------
     printf("\n========================================\n");
-    printf("RUNNING FULL SIMULATION WITH: %s\n", fastest_name);
-    printf("========================================\n");
+    printf("RUNNING FULL SIMULATION WITH: %s\n for %d TIMESTEPS", fastest_name, USER_N_TIMESTEPS);
+    printf("\n========================================\n");
 
     // Reset to initial conditions for final run
     Particle *p_final = malloc(N * sizeof(Particle));
@@ -292,7 +295,7 @@ int main(int argc, char **argv)
     if (fastest_method == 0) {
         // FULL O(N^2)
         (void) md_compute_forces_full(p_final, &sp);
-        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_full(p_final, &sp, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
@@ -305,7 +308,7 @@ int main(int argc, char **argv)
         cell_list_build(&cl_final, p_final, sp.L);
         (void) md_compute_forces_cell(p_final, &sp, &cl_final);
         
-        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_cell(p_final, &sp, &cl_final, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
@@ -325,7 +328,7 @@ int main(int argc, char **argv)
         nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
         (void) md_compute_forces_nbl(p_final, &sp, &nl_final);
         
-        for (int step = 0; step < CONF_N_TIMESTEPS; step++) {
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_nbl(p_final, &sp, &nl_final, &cl_final, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);

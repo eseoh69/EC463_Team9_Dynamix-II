@@ -119,8 +119,8 @@ void nbl_build(NeighborList *nl, CellList *cl, Particle *p, double L, double rc,
     // Finally store current positions
     nbl_copy_positions_N(nl, p, N);
 
-    printf("[NBL] Built neighbor list: total entries %d (avg %.2f per atom)\n",
-           nl->total, (double)nl->total / (double)N);
+//    printf("[NBL] Built neighbor list: total entries %d (avg %.2f per atom)\n",
+ //          nl->total, (double)nl->total / (double)N);
 }
 
 //
@@ -226,7 +226,7 @@ double md_integrate_nbl(Particle *p,
 
     // Need rebuild?
     if (nbl_needs_rebuild(nl, p, N, L)) {
-        printf("[NBL] Rebuilding...\n");
+//        printf("[NBL] Rebuilding...\n");
         cell_list_build(cl, p, L);
         nbl_build(nl, cl, p, L, sp->rc, N);
     }

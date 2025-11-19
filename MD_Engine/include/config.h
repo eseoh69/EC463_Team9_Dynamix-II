@@ -17,7 +17,9 @@
 // Time step + steps
 // -----------------------------
 #define CONF_DELTA_T     0.05
-#define CONF_N_TIMESTEPS 2000
+#define AUTOTUNE_N_TIMESTEPS 2000
+
+#define USER_N_TIMESTEPS 4000
 
 // -----------------------------
 // Box min/max (fallback — will be overwritten by PDB bounds)
