@@ -6,6 +6,8 @@ CC      = gcc
 CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude
 LDFLAGS = -lm
 
+PYTHON  = /opt/homebrew/bin/python3    # <--- ADDED FOR plot_lj.py
+
 SRC = \
     src/main.c \
     src/md.c \
@@ -45,27 +47,40 @@ run: $(TARGET)
 	./md_run input.pdb
 
 # -----------------------------------------
+# NEW: Generate energy plots (4-panel)
+# -----------------------------------------
+plot:
+	$(PYTHON) test_scripts/plot_lj.py
+
+# -----------------------------------------
 # Basic clean (build artifacts only)
 # -----------------------------------------
 clean:
 	rm -f $(OBJ) $(TARGET)
 	rm -rf output
+	rm -f energy_four_panel.png
+	rm -f energy_final_logplot.png
 
 # -----------------------------------------
-# Full clean: remove old stray outputs too
+# Full clean: remove MD outputs
 # -----------------------------------------
 distclean: clean
 	# Remove MD output PDBs ONLY
-	rm -f full_positions.pdb cell_positions.pdb nbl_positions.pdb
-	rm -f final_positions.pdb
+	rm -f output/full_positions.pdb
+	rm -f output/cell_positions.pdb
+	rm -f output/nbl_positions.pdb
+	rm -f output/final_positions.pdb
 
 	# Remove MD output CSVs ONLY
-	rm -f full_energies.csv cell_energies.csv nbl_energies.csv
+	rm -f output/full_energies.csv
+	rm -f output/cell_energies.csv
+	rm -f output/nbl_energies.csv
+	rm -f output/final_energies.csv
 
-	# Remove anything inside output/ folder
+	rm -f energy_final_logplot.png
+	rm -f energy_four_panel.png
+
+	# Remove everything inside output/
 	rm -rf output/*
 
-	# DO NOT delete input.pdb or any user-created PDBs
-	# DO NOT delete *.pdb in project root
-
-.PHONY: all run clean distclean output
+.PHONY: all run clean distclean output plot
