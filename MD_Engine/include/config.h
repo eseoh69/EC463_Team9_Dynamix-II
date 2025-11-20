@@ -16,7 +16,7 @@
 // -----------------------------
 // Time step + steps
 // -----------------------------
-#define CONF_DELTA_T     0.01
+#define CONF_DELTA_T     0.001
 #define AUTOTUNE_N_TIMESTEPS 2000
 
 #define USER_N_TIMESTEPS 4000
