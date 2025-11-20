@@ -276,8 +276,9 @@ int main(int argc, char **argv)
     // 8. RUN FULL SIMULATION WITH FASTEST METHOD
     // ------------------------------------------------
     printf("\n========================================\n");
-    printf("RUNNING FULL SIMULATION WITH: %s\n for %d TIMESTEPS", fastest_name, USER_N_TIMESTEPS);
-    printf("\n========================================\n");
+    printf("RUNNING FULL SIMULATION WITH: %s\nfor %d TIMESTEPS\n", 
+           fastest_name, USER_N_TIMESTEPS);
+    printf("========================================\n");
 
     // Reset to initial conditions for final run
     Particle *p_final = malloc(N * sizeof(Particle));
@@ -292,9 +293,42 @@ int main(int argc, char **argv)
     // Start timing for final run
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
+    // ----------------------------------------------------
+    // FIX: Reset INITIAL FORCES before FINAL SIMULATION
+    // ----------------------------------------------------
     if (fastest_method == 0) {
-        // FULL O(N^2)
-        (void) md_compute_forces_full(p_final, &sp);
+        md_compute_forces_full(p_final, &sp);
+    }
+    else if (fastest_method == 1) {
+        CellList tmp_cl;
+        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&tmp_cl, p_final, sp.L);
+        md_compute_forces_cell(p_final, &sp, &tmp_cl);
+        free(tmp_cl.counts);
+        free(tmp_cl.cells);
+    }
+    else if (fastest_method == 2) {
+        CellList tmp_cl;
+        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&tmp_cl, p_final, sp.L);
+
+        NeighborList tmp_nl;
+        nbl_init(&tmp_nl, (size_t)N, sp.rc, 0.3 * sp.rc);
+        nbl_build(&tmp_nl, &tmp_cl, p_final, sp.L, sp.rc, (size_t)N);
+
+        md_compute_forces_nbl(p_final, &sp, &tmp_nl);
+
+        free(tmp_cl.counts);
+        free(tmp_cl.cells);
+        free(tmp_nl.nb);
+        free(tmp_nl.nb_index);
+        free(tmp_nl.prev);
+    }
+
+    // ----------------------------------------------------
+    // FINAL RUN LOOP (4000 steps)
+    // ----------------------------------------------------
+    if (fastest_method == 0) {
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_full(p_final, &sp, &K);
@@ -302,38 +336,34 @@ int main(int argc, char **argv)
         }
     }
     else if (fastest_method == 1) {
-        // CELL-LIST
         CellList cl_final;
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
-        (void) md_compute_forces_cell(p_final, &sp, &cl_final);
-        
+
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_cell(p_final, &sp, &cl_final, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
         }
-        
+
         free(cl_final.counts);
         free(cl_final.cells);
     }
     else if (fastest_method == 2) {
-        // NEIGHBOR-LIST
         CellList cl_final;
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
-        
+
         NeighborList nl_final;
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
         nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
-        (void) md_compute_forces_nbl(p_final, &sp, &nl_final);
-        
+
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_nbl(p_final, &sp, &nl_final, &cl_final, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
         }
-        
+
         free(cl_final.counts);
         free(cl_final.cells);
         free(nl_final.nb);
