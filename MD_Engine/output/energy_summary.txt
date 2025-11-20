@@ -1,0 +1,34 @@
+=== ENERGY SUMMARY REPORT ===
+
+--- FULL ENERGY CHECK ---
+Initial E0: -3.743111e-02
+Final Ef : -3.743111e-02
+ΔE       : 1.000000e-09
+ΔE/E0    : -0.0000 %
+
+--- CELL ENERGY CHECK ---
+Initial E0: -7.486222e-02
+Final Ef : -7.486220e-02
+ΔE       : 2.640000e-08
+ΔE/E0    : -0.0000 %
+
+--- NBL ENERGY CHECK ---
+Initial E0: -7.486222e-02
+Final Ef : -7.486220e-02
+ΔE       : 2.640000e-08
+ΔE/E0    : -0.0000 %
+
+--- FINAL ENERGY CHECK ---
+Initial E0: -7.486222e-02
+Final Ef : -7.486222e-02
+ΔE       : 5.200000e-09
+ΔE/E0    : -0.0000 %
+
+=== FINAL RUN LOG-SCALE ENERGY INFO ===
+log10|K| range: -8.0969 to 0.2965
+log10|U| range: -1.1257 to 0.3126
+log10|E| range: -1.1268 to -1.1247
+K spike magnitude (orders): 8.3934
+U spike magnitude (orders): 1.4384
+E flatness (orders): 0.0021
+
