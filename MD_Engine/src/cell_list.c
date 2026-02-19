@@ -40,7 +40,7 @@ void cell_list_init(CellList *cl, size_t N, double L, double rc)
     cl->counts = calloc(cl->ncell, sizeof(int));
 
     // generous capacity: up to 16 particles per cell (adjustable)
-    cl->cells  = calloc(N * 16, sizeof(int));
+    cl->cells  = calloc(cl->ncell * 16, sizeof(int));
 }
 
 //
