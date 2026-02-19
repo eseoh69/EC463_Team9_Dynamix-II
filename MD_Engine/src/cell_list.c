@@ -130,6 +130,35 @@ int cell_list_collect_neighbors(const CellList *cl,
     return count;
 }
 
+// Collect indicies of neighbor cells for a given cell (including itself)
+int cl_get_neighbor_cells(const CellList *cl, int cell_idx, int *neighbor_cells)
+{
+    int nc = cl->nc;
+
+    // convert 1D index to 3D coordinates
+    int z = cell_idx / (nc * nc);
+    int rem = cell_idx % (nc * nc);
+    int y = rem / nc;
+    int x = rem % nc;
+
+    int count = 0;
+
+    // loop over the 3x3x3 neighborhood
+    for (int dx = -1; dx <= 1; dx++)
+    for (int dy = -1; dy <= 1; dy++)
+    for (int dz = -1; dz <= 1; dz++)
+    {
+        int nx = wrap(x + dx, nc);
+        int ny = wrap(y + dy, nc);
+        int nz = wrap(z + dz, nc);
+
+        int neighbor_idx = cell_index(nx, ny, nz, nc);
+        neighbor_cells[count++] = neighbor_idx;
+    }
+
+    return count;
+}
+
 //
 // Full MD force computation using cell lists
 // (per your choice 2C)
