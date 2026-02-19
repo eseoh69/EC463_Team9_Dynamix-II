@@ -61,35 +61,60 @@ static FILE *open_energy_csv(const char *path)
 int main(int argc, char **argv)
 {
     if (argc < 2) {
-        printf("Usage: %s input.pdb\n", argv[0]);
+        printf("Usage: %s input_path\n", argv[0]);
         return 1;
     }
 
-    const char *pdb_path = argv[1];
+    const char *input_path = argv[1];
 
     printf("\n================ INITIALIZING SIMULATION ================\n");
     
-    // ------------------------------------------------
-    // 1. Read PDB
-    // ------------------------------------------------
-    Particle *p0 = malloc(MAX_ATOMS * sizeof(Particle));
-    if (!p0) {
-        fprintf(stderr, "Allocation failure for p0\n");
+    double xmin, xmax, ymin, ymax, zmin, zmax;
+
+    printf("Converting input file via Python script...\n");
+    char command[256];
+    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
+    int status = system(command);
+
+    if (status != 0) {
+        fprintf(stderr, "Error: Python conversion failed.\n");
+        return 1;
+    }
+    FILE *f_meta = fopen("temp_metadata.txt", "r");
+    int N;
+//    char file_extension[3];
+    if (f_meta) {
+        fscanf(f_meta, "%d", &N);
+
+//GRO provides sim dims, could get from file
+//        fgets(file_extension,10,f_meta);
+//        fgets(file_extension,10,f_meta);
+        fclose(f_meta);
+    } else {
+        fprintf(stderr, "Metadata not found!\n");
         return 1;
     }
 
-    double xmin, xmax, ymin, ymax, zmin, zmax;
-    int N = pdb_importer(pdb_path, p0, MAX_ATOMS,
+// Now you can allocate exactly what you need
+Particle *p0 = malloc(N * sizeof(Particle));
+
+// Now you know temp_coords.bin exists and is ready
+int foo;
+    foo = binary_importer("temp_coords.bin", p0, N,
                          &xmin, &xmax,
                          &ymin, &ymax,
                          &zmin, &zmax);
     if (N <= 0) {
-        fprintf(stderr, "Failed to read PDB: %s\n", pdb_path);
+        fprintf(stderr, "Failed to read PDB: %s\n", input_path);
         free(p0);
         return 1;
     }
 
-    printf("Loaded %d atoms from %s\n", N, pdb_path);
+    printf("deleting temp files \n");
+    status = system("rm -rf temp_coords.bin");
+    status = system("rm -rf temp_metadata.txt");
+
+    printf("Loaded %d atoms from %s\n", N, input_path);
     printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
            xmax - xmin, ymax - ymin, zmax - zmin);
 
