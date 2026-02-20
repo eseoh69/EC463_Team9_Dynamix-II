@@ -83,28 +83,25 @@ int main(int argc, char **argv)
     }
     FILE *f_meta = fopen("temp_metadata.txt", "r");
     int N;
-//    char file_extension[3];
     if (f_meta) {
         fscanf(f_meta, "%d", &N);
-
-//GRO provides sim dims, could get from file
-//        fgets(file_extension,10,f_meta);
-//        fgets(file_extension,10,f_meta);
         fclose(f_meta);
     } else {
         fprintf(stderr, "Metadata not found!\n");
         return 1;
     }
 
-// Now you can allocate exactly what you need
-Particle *p0 = malloc(N * sizeof(Particle));
+    // Now you can allocate exactly what you need
+    Particle *p0 = malloc(N * sizeof(Particle));
 
-// Now you know temp_coords.bin exists and is ready
-int foo;
+    // Now you know temp_coords.bin exists and is ready
+    int foo;
     foo = binary_importer("temp_coords.bin", p0, N,
                          &xmin, &xmax,
                          &ymin, &ymax,
                          &zmin, &zmax);
+    (void)foo; // Suppress unused variable warning
+    
     if (N <= 0) {
         fprintf(stderr, "Failed to read PDB: %s\n", input_path);
         free(p0);
@@ -149,12 +146,10 @@ int foo;
     Particle *p_final = malloc(N * sizeof(Particle));
     Particle *p_nbl_pthread = malloc(N * sizeof(Particle));
 
-    if (!p_full || !p_cell || !p_nbl || !p_cell_mt) {
-    if (!p_full || !p_cell || !p_nbl || !p_nbl_pthread) {
+    if (!p_full || !p_cell || !p_nbl || !p_cell_mt || !p_nbl_pthread || !p_final) {
         fprintf(stderr, "Allocation failure for particle copies\n");
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
-        free(p0);
-        free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -173,8 +168,8 @@ int foo;
 
     FILE *f_full = open_energy_csv("output/full_energies.csv");
     if (!f_full) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -207,8 +202,8 @@ int foo;
 
     FILE *f_cell = open_energy_csv("output/cell_energies.csv");
     if (!f_cell) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -241,8 +236,8 @@ int foo;
 
     FILE *f_nbl = open_energy_csv("output/nbl_energies.csv");
     if (!f_nbl) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -274,7 +269,7 @@ int foo;
 
     fclose(f_nbl);
     io_write_pdb("output/nbl_positions.pdb", p_nbl, (size_t)N);
-    printf("NEIGHBOR-LIST MD done. Time: %.6f seconds\n", time_nbl);
+    printf("NEIGHBOR-LIST MD (Serial) done. Time: %.6f seconds\n", time_nbl);
 
     // ------------------------------------------------
     // HALF-SHELL MULTI-THREADED CELL-LIST MD
@@ -283,7 +278,8 @@ int foo;
 
     FILE *f_cell_mt = open_energy_csv("output/cell_half_mt_energies.csv");
     if (!f_cell_mt){
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     } 
 
@@ -304,11 +300,10 @@ int foo;
 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
     double time_cell_mt = interval(time_start, time_stop);
-    io_write_pdb("output/cell_half_mt_positions.pdb", p_nbl, (size_t)N);
-    printf("MULTI-THREADED CELL-LIST MD done. Time: %.6f seconds\n", time_cell_mt);
 
     fclose(f_cell_mt);
-    printf("NEIGHBOR-LIST MD (Serial) done. Time: %.6f seconds\n", time_nbl);
+    io_write_pdb("output/cell_half_mt_positions.pdb", p_cell_mt, (size_t)N);
+    printf("HALF-SHELL MULTI-THREADED CELL-LIST MD done. Time: %.6f seconds\n", time_cell_mt);
 
     // ------------------------------------------------
     // 7. NEIGHBOR-LIST MD (Pthread) - WITH TIMING
@@ -318,7 +313,8 @@ int foo;
 
     FILE *f_nbl_pthread = open_energy_csv("output/nbl_pthread_energies.csv");
     if (!f_nbl_pthread) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); 
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -363,18 +359,18 @@ int foo;
     printf("\n========================================\n");
     printf("PERFORMANCE COMPARISON\n");
     printf("========================================\n");
-    printf("FULL O(N^2):       %.6f seconds (%.2fx speedup)\n", 
+    printf("FULL O(N^2):                %.6f seconds (%.2fx speedup)\n", 
            time_full, time_full/time_full);
-    printf("CELL-LIST:         %.6f seconds (%.2fx speedup)\n", 
+    printf("CELL-LIST:                  %.6f seconds (%.2fx speedup)\n", 
            time_cell, time_full/time_cell);
-    printf("NEIGHBOR-LIST:     %.6f seconds (%.2fx speedup)\n", 
+    printf("NEIGHBOR-LIST (Serial):     %.6f seconds (%.2fx speedup)\n", 
            time_nbl, time_full/time_nbl);
-     printf("CELL-LIST HALF SHELL MULTI-THREADED:  %.6f seconds (%.2fx speedup)\n", 
-            time_cell_mt, time_full/time_cell_mt);
-    printf("NBL-PTHREAD (%d):   %.6f seconds (%.2fx speedup)\n", 
+    printf("CELL-LIST HALF-SHELL MT:    %.6f seconds (%.2fx speedup)\n", 
+           time_cell_mt, time_full/time_cell_mt);
+    printf("NBL-PTHREAD (%d threads):    %.6f seconds (%.2fx speedup)\n", 
            nbl_pthread_get_num_threads(), time_nbl_pthread, time_full/time_nbl_pthread);
     printf("========================================\n");
-    printf("Pthread vs Serial NBL: %.2fx\n", time_nbl/time_nbl_pthread);
+    printf("Pthread NBL vs Serial NBL: %.2fx\n", time_nbl/time_nbl_pthread);
     printf("========================================\n");
 
     // Determine fastest
@@ -393,16 +389,16 @@ int foo;
     if (time_nbl < fastest_time) {
         fastest_time = time_nbl;
         fastest_method = 2;
-        fastest_name = "NEIGHBOR-LIST";
+        fastest_name = "NEIGHBOR-LIST (Serial)";
     }
     if (time_cell_mt < fastest_time) {
         fastest_time = time_cell_mt;
         fastest_method = 3;
-        fastest_name = "CELL-LIST HALF SHELL MULTI-THREADED";
+        fastest_name = "CELL-LIST HALF-SHELL MT";
     }   
     if (time_nbl_pthread < fastest_time) {
         fastest_time = time_nbl_pthread;
-        fastest_method = 3;
+        fastest_method = 4;
         fastest_name = "NBL-PTHREAD";
     }
 
@@ -418,9 +414,8 @@ int foo;
 
     FILE *f_final = open_energy_csv("output/final_energies.csv");
     if (!f_final) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_final); free(p_cell_mt);
         free(p0); free(p_full); free(p_cell); free(p_nbl); 
-        free(p_nbl_pthread); free(p_final);
+        free(p_cell_mt); free(p_nbl_pthread); free(p_final);
         return 1;
     }
 
@@ -428,58 +423,12 @@ int foo;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     // ----------------------------------------------------
-    // FINAL RUN LOOP (4000 steps)
+    // FINAL RUN LOOP
     // ----------------------------------------------------
     if (fastest_method == 0) {
+        // Compute initial forces
         md_compute_forces_full(p_final, &sp);
-    }
-    else if (fastest_method == 1) {
-        CellList tmp_cl;
-        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
-        cell_list_build(&tmp_cl, p_final, sp.L);
-        md_compute_forces_cell(p_final, &sp, &tmp_cl);
-        free(tmp_cl.counts);
-        free(tmp_cl.cells);
-    }
-    else if (fastest_method == 2) {
-        CellList tmp_cl;
-        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
-        cell_list_build(&tmp_cl, p_final, sp.L);
 
-        NeighborList tmp_nl;
-        nbl_init(&tmp_nl, (size_t)N, sp.rc, 0.3 * sp.rc);
-        nbl_build(&tmp_nl, &tmp_cl, p_final, sp.L, sp.rc, (size_t)N);
-
-        md_compute_forces_nbl(p_final, &sp, &tmp_nl);
-
-        free(tmp_cl.counts);
-        free(tmp_cl.cells);
-        free(tmp_nl.nb);
-        free(tmp_nl.nb_index);
-        free(tmp_nl.prev);
-    }
-    else if (fastest_method == 3) {
-        CellList tmp_cl;
-        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
-        cell_list_build(&tmp_cl, p_final, sp.L);
-
-        NeighborList tmp_nl;
-        nbl_init(&tmp_nl, (size_t)N, sp.rc, 0.3 * sp.rc);
-        nbl_build_pthread(&tmp_nl, &tmp_cl, p_final, sp.L, sp.rc, (size_t)N);
-
-        md_compute_forces_nbl_pthread(p_final, &sp, &tmp_nl);
-
-        free(tmp_cl.counts);
-        free(tmp_cl.cells);
-        free(tmp_nl.nb);
-        free(tmp_nl.nb_index);
-        free(tmp_nl.prev);
-    }
-
-    // ----------------------------------------------------
-    // FINAL RUN LOOP (4000 steps)
-    // ----------------------------------------------------
-    if (fastest_method == 0) {
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_full(p_final, &sp, &K);
@@ -491,6 +440,7 @@ int foo;
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
 
+        // Compute initial forces
         md_compute_forces_cell(p_final, &sp, &cl_final);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
@@ -511,6 +461,7 @@ int foo;
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
         nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
 
+        // Compute initial forces
         md_compute_forces_nbl(p_final, &sp, &nl_final);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
@@ -525,11 +476,12 @@ int foo;
         free(nl_final.nb_index);
         free(nl_final.prev);
     }
-    else if (fastest_method == 3) { // CELL-LIST MULTI-THREADED
+    else if (fastest_method == 3) {
         CellList cl_mt_final;
         cell_list_init(&cl_mt_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_mt_final, p_final, sp.L);
 
+        // Compute initial forces
         md_compute_forces_cell_mt(p_final, &sp, &cl_mt_final);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
@@ -541,7 +493,7 @@ int foo;
         free(cl_mt_final.counts);
         free(cl_mt_final.cells);
     }
-    else if (fastest_method == 3) {
+    else if (fastest_method == 4) {
         CellList cl_final;
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
@@ -549,6 +501,9 @@ int foo;
         NeighborList nl_final;
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
         nbl_build_pthread(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
+
+        // Compute initial forces - THIS WAS MISSING
+        md_compute_forces_nbl_pthread(p_final, &sp, &nl_final);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
@@ -584,6 +539,8 @@ int foo;
     free(cl2.cells);
     free(cl3.counts);
     free(cl3.cells);
+    free(cl_half.counts);
+    free(cl_half.cells);
     free(nl.nb);
     free(nl.nb_index);
     free(nl.prev);
