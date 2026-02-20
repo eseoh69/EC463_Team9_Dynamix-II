@@ -12,6 +12,7 @@
 #include "pdb_importer.h"
 #include "cell_list.h"
 #include "neighbor_list.h"
+#include "cell_mt.h"
 
 #define MAX_ATOMS 50000
 
@@ -121,12 +122,13 @@ int foo;
     // 2. Set up simulation parameters
     // ------------------------------------------------
     SimParams sp;
-    sp.N       = (size_t)N;
-    sp.sigma   = CONF_SIGMA;
-    sp.epsilon = CONF_EPSILON;
-    sp.rc      = CONF_CUTOFF;
-    sp.rc2     = sp.rc * sp.rc;
-    sp.dt      = CONF_DELTA_T;
+    sp.N        = (size_t)N;
+    sp.sigma    = CONF_SIGMA;
+    sp.epsilon  = CONF_EPSILON;
+    sp.rc       = CONF_CUTOFF;
+    sp.rc2      = sp.rc * sp.rc;
+    sp.dt       = CONF_DELTA_T;
+    sp.nthreads = N_THREADS;
 
     // Use largest span as box length
     sp.L = fmax(fmax(xmax - xmin, ymax - ymin), zmax - zmin);
@@ -137,22 +139,25 @@ int foo;
            sp.rc, sp.dt, AUTOTUNE_N_TIMESTEPS);
 
     // ------------------------------------------------
-    // 3. Make copies for each MD method
+    // 3. Make copies for each MD method and for the final simulation
     // ------------------------------------------------
     Particle *p_full = malloc(N * sizeof(Particle));
     Particle *p_cell = malloc(N * sizeof(Particle));
     Particle *p_nbl  = malloc(N * sizeof(Particle));
+    Particle *p_cell_mt = malloc(N * sizeof(Particle));
+    Particle *p_final = malloc(N * sizeof(Particle));
 
-    if (!p_full || !p_cell || !p_nbl) {
+    if (!p_full || !p_cell || !p_nbl || !p_cell_mt) {
         fprintf(stderr, "Allocation failure for particle copies\n");
-        free(p0);
-        free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         return 1;
     }
 
     copy_particles(p_full, p0, (size_t)N);
     copy_particles(p_cell, p0, (size_t)N);
     copy_particles(p_nbl,  p0, (size_t)N);
+    copy_particles(p_cell_mt, p0, (size_t)N);
+    copy_particles(p_final, p0, (size_t)N);
 
     printf("\n================ BEGINNING AUTOTUNING ================");
     // ------------------------------------------------
@@ -162,7 +167,7 @@ int foo;
 
     FILE *f_full = open_energy_csv("output/full_energies.csv");
     if (!f_full) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         return 1;
     }
 
@@ -195,7 +200,7 @@ int foo;
 
     FILE *f_cell = open_energy_csv("output/cell_energies.csv");
     if (!f_cell) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         return 1;
     }
 
@@ -228,7 +233,7 @@ int foo;
 
     FILE *f_nbl = open_energy_csv("output/nbl_energies.csv");
     if (!f_nbl) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         return 1;
     }
 
@@ -263,6 +268,39 @@ int foo;
     printf("NEIGHBOR-LIST MD done. Time: %.6f seconds\n", time_nbl);
 
     // ------------------------------------------------
+    // HALF-SHELL MULTI-THREADED CELL-LIST MD
+    // ------------------------------------------------
+    printf("\n================ HALF-SHELL PARALLEL CELL-LIST MD ================\n");
+
+    FILE *f_cell_mt = open_energy_csv("output/cell_half_mt_energies.csv");
+    if (!f_cell_mt){
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
+        return 1;
+    } 
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+
+    CellList cl_half;
+    cell_list_init(&cl_half, (size_t)N, sp.L, sp.rc);
+    cell_list_build(&cl_half, p_cell_mt, sp.L);
+
+    // initial forces using the mt half-shell logic
+    md_compute_forces_cell_mt(p_cell_mt, &sp, &cl_half);
+
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
+        double K, U;
+        U = md_integrate_cell_mt(p_cell_mt, &sp, &cl_half, &K);
+        fprintf(f_cell_mt, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_cell_mt = interval(time_start, time_stop);
+    io_write_pdb("output/cell_half_mt_positions.pdb", p_nbl, (size_t)N);
+    printf("MULTI-THREADED CELL-LIST MD done. Time: %.6f seconds\n", time_cell_mt);
+
+    fclose(f_cell_mt);
+
+    // ------------------------------------------------
     // 7. COMPARE TIMES AND DETERMINE FASTEST
     // ------------------------------------------------
     printf("\n========================================\n");
@@ -274,6 +312,8 @@ int foo;
            time_cell, time_full/time_cell);
     printf("NEIGHBOR-LIST:   %.6f seconds (%.2fx speedup)\n", 
            time_nbl, time_full/time_nbl);
+     printf("CELL-LIST HALF SHELL MULTI-THREADED:  %.6f seconds (%.2fx speedup)\n", 
+            time_cell_mt, time_full/time_cell_mt);
     printf("========================================\n");
 
     // Determine fastest
@@ -294,7 +334,11 @@ int foo;
         fastest_method = 2;
         fastest_name = "NEIGHBOR-LIST";
     }
-
+    if (time_cell_mt < fastest_time) {
+        fastest_time = time_cell_mt;
+        fastest_method = 3;
+        fastest_name = "CELL-LIST HALF SHELL MULTI-THREADED";
+    }   
     printf("\nFASTEST METHOD: %s (%.6f seconds)\n", fastest_name, fastest_time);
 
     // ------------------------------------------------
@@ -305,13 +349,9 @@ int foo;
            fastest_name, USER_N_TIMESTEPS);
     printf("========================================\n");
 
-    // Reset to initial conditions for final run
-    Particle *p_final = malloc(N * sizeof(Particle));
-    copy_particles(p_final, p0, (size_t)N);
-
     FILE *f_final = open_energy_csv("output/final_energies.csv");
     if (!f_final) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_final);
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_final); free(p_cell_mt);
         return 1;
     }
 
@@ -319,41 +359,10 @@ int foo;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     // ----------------------------------------------------
-    // FIX: Reset INITIAL FORCES before FINAL SIMULATION
-    // ----------------------------------------------------
-    if (fastest_method == 0) {
-        md_compute_forces_full(p_final, &sp);
-    }
-    else if (fastest_method == 1) {
-        CellList tmp_cl;
-        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
-        cell_list_build(&tmp_cl, p_final, sp.L);
-        md_compute_forces_cell(p_final, &sp, &tmp_cl);
-        free(tmp_cl.counts);
-        free(tmp_cl.cells);
-    }
-    else if (fastest_method == 2) {
-        CellList tmp_cl;
-        cell_list_init(&tmp_cl, (size_t)N, sp.L, sp.rc);
-        cell_list_build(&tmp_cl, p_final, sp.L);
-
-        NeighborList tmp_nl;
-        nbl_init(&tmp_nl, (size_t)N, sp.rc, 0.3 * sp.rc);
-        nbl_build(&tmp_nl, &tmp_cl, p_final, sp.L, sp.rc, (size_t)N);
-
-        md_compute_forces_nbl(p_final, &sp, &tmp_nl);
-
-        free(tmp_cl.counts);
-        free(tmp_cl.cells);
-        free(tmp_nl.nb);
-        free(tmp_nl.nb_index);
-        free(tmp_nl.prev);
-    }
-
-    // ----------------------------------------------------
     // FINAL RUN LOOP (4000 steps)
     // ----------------------------------------------------
     if (fastest_method == 0) {
+        md_compute_forces_full(p_final, &sp);
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_full(p_final, &sp, &K);
@@ -364,6 +373,8 @@ int foo;
         CellList cl_final;
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
+
+        md_compute_forces_cell(p_final, &sp, &cl_final);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
@@ -383,6 +394,8 @@ int foo;
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
         nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
 
+        md_compute_forces_nbl(p_final, &sp, &nl_final);
+
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_nbl(p_final, &sp, &nl_final, &cl_final, &K);
@@ -394,6 +407,22 @@ int foo;
         free(nl_final.nb);
         free(nl_final.nb_index);
         free(nl_final.prev);
+    }
+    else if (fastest_method == 3) { // CELL-LIST MULTI-THREADED
+        CellList cl_mt_final;
+        cell_list_init(&cl_mt_final, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&cl_mt_final, p_final, sp.L);
+
+        md_compute_forces_cell_mt(p_final, &sp, &cl_mt_final);
+
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_cell_mt(p_final, &sp, &cl_mt_final, &K);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+
+        free(cl_mt_final.counts);
+        free(cl_mt_final.cells);
     }
 
     // End timing for final run
@@ -413,6 +442,7 @@ int foo;
     free(p_full);
     free(p_cell);
     free(p_nbl);
+    free(p_cell_mt);
     free(p_final);
 
     printf("\nAll simulations complete.\n");

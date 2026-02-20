@@ -27,4 +27,6 @@
 #define CONF_BOX_MIN     0.0
 #define CONF_BOX_MAX     100.0
 
+#define N_THREADS        16
+
 #endif

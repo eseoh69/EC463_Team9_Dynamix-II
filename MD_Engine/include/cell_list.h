@@ -27,6 +27,9 @@ int cell_list_collect_neighbors(const CellList *cl,
                                 const Particle *p,
                                 double L,
                                 int *buf);
+int cl_get_neighbor_cells(const CellList *cl,
+                          int cell_idx,
+                          int *neighbor_cells);
 
 double md_compute_forces_cell(Particle *p, const SimParams *sp,
                               const CellList *cl);
