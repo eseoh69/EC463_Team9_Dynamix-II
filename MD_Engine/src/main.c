@@ -12,6 +12,7 @@
 #include "pdb_importer.h"
 #include "cell_list.h"
 #include "neighbor_list.h"
+#include "cell_mt.h"
 #include "neighbor_list_pthread.h"
 
 #define MAX_ATOMS 50000
@@ -61,35 +62,60 @@ static FILE *open_energy_csv(const char *path)
 int main(int argc, char **argv)
 {
     if (argc < 2) {
-        printf("Usage: %s input.pdb\n", argv[0]);
+        printf("Usage: %s input_path\n", argv[0]);
         return 1;
     }
 
-    const char *pdb_path = argv[1];
+    const char *input_path = argv[1];
 
     printf("\n================ INITIALIZING SIMULATION ================\n");
     
-    // ------------------------------------------------
-    // 1. Read PDB
-    // ------------------------------------------------
-    Particle *p0 = malloc(MAX_ATOMS * sizeof(Particle));
-    if (!p0) {
-        fprintf(stderr, "Allocation failure for p0\n");
+    double xmin, xmax, ymin, ymax, zmin, zmax;
+
+    printf("Converting input file via Python script...\n");
+    char command[256];
+    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
+    int status = system(command);
+
+    if (status != 0) {
+        fprintf(stderr, "Error: Python conversion failed.\n");
+        return 1;
+    }
+    FILE *f_meta = fopen("temp_metadata.txt", "r");
+    int N;
+//    char file_extension[3];
+    if (f_meta) {
+        fscanf(f_meta, "%d", &N);
+
+//GRO provides sim dims, could get from file
+//        fgets(file_extension,10,f_meta);
+//        fgets(file_extension,10,f_meta);
+        fclose(f_meta);
+    } else {
+        fprintf(stderr, "Metadata not found!\n");
         return 1;
     }
 
-    double xmin, xmax, ymin, ymax, zmin, zmax;
-    int N = pdb_importer(pdb_path, p0, MAX_ATOMS,
+// Now you can allocate exactly what you need
+Particle *p0 = malloc(N * sizeof(Particle));
+
+// Now you know temp_coords.bin exists and is ready
+int foo;
+    foo = binary_importer("temp_coords.bin", p0, N,
                          &xmin, &xmax,
                          &ymin, &ymax,
                          &zmin, &zmax);
     if (N <= 0) {
-        fprintf(stderr, "Failed to read PDB: %s\n", pdb_path);
+        fprintf(stderr, "Failed to read PDB: %s\n", input_path);
         free(p0);
         return 1;
     }
 
-    printf("Loaded %d atoms from %s\n", N, pdb_path);
+    printf("deleting temp files \n");
+    status = system("rm -rf temp_coords.bin");
+    status = system("rm -rf temp_metadata.txt");
+
+    printf("Loaded %d atoms from %s\n", N, input_path);
     printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
            xmax - xmin, ymax - ymin, zmax - zmin);
 
@@ -97,12 +123,13 @@ int main(int argc, char **argv)
     // 2. Set up simulation parameters
     // ------------------------------------------------
     SimParams sp;
-    sp.N       = (size_t)N;
-    sp.sigma   = CONF_SIGMA;
-    sp.epsilon = CONF_EPSILON;
-    sp.rc      = CONF_CUTOFF;
-    sp.rc2     = sp.rc * sp.rc;
-    sp.dt      = CONF_DELTA_T;
+    sp.N        = (size_t)N;
+    sp.sigma    = CONF_SIGMA;
+    sp.epsilon  = CONF_EPSILON;
+    sp.rc       = CONF_CUTOFF;
+    sp.rc2      = sp.rc * sp.rc;
+    sp.dt       = CONF_DELTA_T;
+    sp.nthreads = N_THREADS;
 
     // Use largest span as box length
     sp.L = fmax(fmax(xmax - xmin, ymax - ymin), zmax - zmin);
@@ -113,15 +140,19 @@ int main(int argc, char **argv)
            sp.rc, sp.dt, AUTOTUNE_N_TIMESTEPS);
 
     // ------------------------------------------------
-    // 3. Make copies for each MD method
+    // 3. Make copies for each MD method and for the final simulation
     // ------------------------------------------------
     Particle *p_full = malloc(N * sizeof(Particle));
     Particle *p_cell = malloc(N * sizeof(Particle));
     Particle *p_nbl  = malloc(N * sizeof(Particle));
+    Particle *p_cell_mt = malloc(N * sizeof(Particle));
+    Particle *p_final = malloc(N * sizeof(Particle));
     Particle *p_nbl_pthread = malloc(N * sizeof(Particle));
 
+    if (!p_full || !p_cell || !p_nbl || !p_cell_mt) {
     if (!p_full || !p_cell || !p_nbl || !p_nbl_pthread) {
         fprintf(stderr, "Allocation failure for particle copies\n");
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         free(p0);
         free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
         return 1;
@@ -130,6 +161,8 @@ int main(int argc, char **argv)
     copy_particles(p_full, p0, (size_t)N);
     copy_particles(p_cell, p0, (size_t)N);
     copy_particles(p_nbl,  p0, (size_t)N);
+    copy_particles(p_cell_mt, p0, (size_t)N);
+    copy_particles(p_final, p0, (size_t)N);
     copy_particles(p_nbl_pthread, p0, (size_t)N);
 
     printf("\n================ BEGINNING AUTOTUNING ================");
@@ -140,6 +173,7 @@ int main(int argc, char **argv)
 
     FILE *f_full = open_energy_csv("output/full_energies.csv");
     if (!f_full) {
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
         return 1;
     }
@@ -173,6 +207,7 @@ int main(int argc, char **argv)
 
     FILE *f_cell = open_energy_csv("output/cell_energies.csv");
     if (!f_cell) {
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
         return 1;
     }
@@ -206,6 +241,7 @@ int main(int argc, char **argv)
 
     FILE *f_nbl = open_energy_csv("output/nbl_energies.csv");
     if (!f_nbl) {
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
         free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_nbl_pthread);
         return 1;
     }
@@ -238,6 +274,40 @@ int main(int argc, char **argv)
 
     fclose(f_nbl);
     io_write_pdb("output/nbl_positions.pdb", p_nbl, (size_t)N);
+    printf("NEIGHBOR-LIST MD done. Time: %.6f seconds\n", time_nbl);
+
+    // ------------------------------------------------
+    // HALF-SHELL MULTI-THREADED CELL-LIST MD
+    // ------------------------------------------------
+    printf("\n================ HALF-SHELL PARALLEL CELL-LIST MD ================\n");
+
+    FILE *f_cell_mt = open_energy_csv("output/cell_half_mt_energies.csv");
+    if (!f_cell_mt){
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_cell_mt);
+        return 1;
+    } 
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+
+    CellList cl_half;
+    cell_list_init(&cl_half, (size_t)N, sp.L, sp.rc);
+    cell_list_build(&cl_half, p_cell_mt, sp.L);
+
+    // initial forces using the mt half-shell logic
+    md_compute_forces_cell_mt(p_cell_mt, &sp, &cl_half);
+
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
+        double K, U;
+        U = md_integrate_cell_mt(p_cell_mt, &sp, &cl_half, &K);
+        fprintf(f_cell_mt, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_cell_mt = interval(time_start, time_stop);
+    io_write_pdb("output/cell_half_mt_positions.pdb", p_nbl, (size_t)N);
+    printf("MULTI-THREADED CELL-LIST MD done. Time: %.6f seconds\n", time_cell_mt);
+
+    fclose(f_cell_mt);
     printf("NEIGHBOR-LIST MD (Serial) done. Time: %.6f seconds\n", time_nbl);
 
     // ------------------------------------------------
@@ -299,6 +369,8 @@ int main(int argc, char **argv)
            time_cell, time_full/time_cell);
     printf("NEIGHBOR-LIST:     %.6f seconds (%.2fx speedup)\n", 
            time_nbl, time_full/time_nbl);
+     printf("CELL-LIST HALF SHELL MULTI-THREADED:  %.6f seconds (%.2fx speedup)\n", 
+            time_cell_mt, time_full/time_cell_mt);
     printf("NBL-PTHREAD (%d):   %.6f seconds (%.2fx speedup)\n", 
            nbl_pthread_get_num_threads(), time_nbl_pthread, time_full/time_nbl_pthread);
     printf("========================================\n");
@@ -323,6 +395,11 @@ int main(int argc, char **argv)
         fastest_method = 2;
         fastest_name = "NEIGHBOR-LIST";
     }
+    if (time_cell_mt < fastest_time) {
+        fastest_time = time_cell_mt;
+        fastest_method = 3;
+        fastest_name = "CELL-LIST HALF SHELL MULTI-THREADED";
+    }   
     if (time_nbl_pthread < fastest_time) {
         fastest_time = time_nbl_pthread;
         fastest_method = 3;
@@ -339,12 +416,9 @@ int main(int argc, char **argv)
            fastest_name, USER_N_TIMESTEPS);
     printf("========================================\n");
 
-    // Reset to initial conditions for final run
-    Particle *p_final = malloc(N * sizeof(Particle));
-    copy_particles(p_final, p0, (size_t)N);
-
     FILE *f_final = open_energy_csv("output/final_energies.csv");
     if (!f_final) {
+        free(p0); free(p_full); free(p_cell); free(p_nbl); free(p_final); free(p_cell_mt);
         free(p0); free(p_full); free(p_cell); free(p_nbl); 
         free(p_nbl_pthread); free(p_final);
         return 1;
@@ -354,7 +428,7 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
 
     // ----------------------------------------------------
-    // FIX: Reset INITIAL FORCES before FINAL SIMULATION
+    // FINAL RUN LOOP (4000 steps)
     // ----------------------------------------------------
     if (fastest_method == 0) {
         md_compute_forces_full(p_final, &sp);
@@ -417,6 +491,8 @@ int main(int argc, char **argv)
         cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
         cell_list_build(&cl_final, p_final, sp.L);
 
+        md_compute_forces_cell(p_final, &sp, &cl_final);
+
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_cell(p_final, &sp, &cl_final, &K);
@@ -435,6 +511,8 @@ int main(int argc, char **argv)
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
         nbl_build(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
 
+        md_compute_forces_nbl(p_final, &sp, &nl_final);
+
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_nbl(p_final, &sp, &nl_final, &cl_final, &K);
@@ -446,6 +524,22 @@ int main(int argc, char **argv)
         free(nl_final.nb);
         free(nl_final.nb_index);
         free(nl_final.prev);
+    }
+    else if (fastest_method == 3) { // CELL-LIST MULTI-THREADED
+        CellList cl_mt_final;
+        cell_list_init(&cl_mt_final, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&cl_mt_final, p_final, sp.L);
+
+        md_compute_forces_cell_mt(p_final, &sp, &cl_mt_final);
+
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_cell_mt(p_final, &sp, &cl_mt_final, &K);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+
+        free(cl_mt_final.counts);
+        free(cl_mt_final.cells);
     }
     else if (fastest_method == 3) {
         CellList cl_final;
@@ -501,6 +595,7 @@ int main(int argc, char **argv)
     free(p_full);
     free(p_cell);
     free(p_nbl);
+    free(p_cell_mt);
     free(p_nbl_pthread);
     free(p_final);
 

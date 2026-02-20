@@ -48,19 +48,20 @@ def load_energy_csv(path):
 
 
 # =============================
-# File definitions
+# File definitions (UPDATED)
 # =============================
 files = {
-    "full":  "output/full_energies.csv",
-    "cell":  "output/cell_energies.csv",
-    "nbl":   "output/nbl_energies.csv",
-    "final": "output/final_energies.csv"
+    "full":         "../output/full_energies.csv",
+    "cell":         "../output/cell_energies.csv",
+    "cell_half_mt": "../output/cell_half_mt_energies.csv",
+    "nbl":          "../output/nbl_energies.csv",
+    "final":        "../output/final_energies.csv"
 }
 
 # =============================
-# Create main 4-panel figure
+# Create main figure (DYNAMIC ROWS)
 # =============================
-fig, axes = plt.subplots(4, 1, figsize=(12, 16), sharex=True)
+fig, axes = plt.subplots(len(files), 1, figsize=(12, 4 * len(files)), sharex=True)
 
 final_data = None
 
@@ -115,10 +116,10 @@ for ax, (name, path) in zip(axes, files.items()):
 axes[-1].set_xlabel("Step")
 
 plt.tight_layout()
-plt.savefig("output/energy_four_panel.png", dpi=300)
+plt.savefig("output/energy_all_comparison.png", dpi=300)
 
 # =============================
-# EXTRA LOG-PLOT for FINAL
+# LOG-PLOT for FINAL
 # =============================
 if final_data is not None:
     steps, K, U, E = final_data
@@ -151,6 +152,6 @@ if final_data is not None:
     plt.savefig("output/energy_final_logplot.png", dpi=300)
 
 summary.close()
-
-print(f"\n✓ Energy summary written to: {summary_path}")
-print("✓ Plots saved in output/\n")
+print(f"\nEnergy summary written to: {summary_path}")
+print("Comparison saved: output/energy_all_comparison.png")
+print("Final log-plot saved: output/energy_final_logplot.png\n")

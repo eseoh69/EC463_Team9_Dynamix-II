@@ -5,19 +5,19 @@
 // Lennard-Jones (unitless)
 // Positions are in Angstroms but σ and ε define dimensionless LJ units
 // -----------------------------
-#define CONF_SIGMA       1.0     // LJ sigma (defines distance scale)
-#define CONF_EPSILON     1.0     // LJ epsilon (defines energy scale)
+#define CONF_SIGMA       3.405     // LJ sigma (defines distance scale)
+#define CONF_EPSILON     0.997     // LJ epsilon (defines energy scale)
 
 // -----------------------------
-// LJ Cutoff (in Angstrom units)
+// LJ Cutoff (in Angstroms)
 // -----------------------------
-#define CONF_CUTOFF      30
+#define CONF_CUTOFF      10
 
 // -----------------------------
 // Time step + steps
 // -----------------------------
 #define CONF_DELTA_T     0.001
-#define AUTOTUNE_N_TIMESTEPS 2000
+#define AUTOTUNE_N_TIMESTEPS 100
 
 #define USER_N_TIMESTEPS 4000
 
@@ -26,7 +26,5 @@
 // -----------------------------
 #define CONF_BOX_MIN     0.0
 #define CONF_BOX_MAX     100.0
-
-#define N_THREADS        16
 
 #endif

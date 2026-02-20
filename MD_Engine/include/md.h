@@ -26,6 +26,8 @@ typedef struct {
     double rc2;
 
     double dt;
+
+    int nthreads;
 } SimParams;
 
 //
@@ -69,5 +71,12 @@ double md_integrate_nbl(Particle *p, const SimParams *sp,
                         struct NeighborList *nl,
                         struct CellList *cl,
                         double *Kout);
+
+//
+// CELL LIST MULTITHREADED MD
+//
+double md_integrate_cell_mt(Particle *p, const SimParams *sp,
+                                       struct CellList *cl,
+                                       double *Kout);
 
 #endif

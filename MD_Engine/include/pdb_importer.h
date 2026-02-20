@@ -14,4 +14,10 @@ int pdb_importer(const char *path,
                  double *ymin, double *ymax,
                  double *zmin, double *zmax);
 
+
+int binary_importer(const char *path,
+                 Particle *p, int maxN,
+                 double *xmin, double *xmax,
+                 double *ymin, double *ymax,
+                 double *zmin, double *zmax);
 #endif

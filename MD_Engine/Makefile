@@ -24,7 +24,8 @@ SRC = \
     src/neighbor_list.c \
     src/neighbor_list_pthread.c \
     src/md_io.c \
-    src/pdb_importer.c
+    src/pdb_importer.c \
+	src/cell_mt.c
 
 OBJ = $(SRC:.c=.o)
 

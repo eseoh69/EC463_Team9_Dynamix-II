@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "cell_mt.h"
 
 //
 // ======================================================
@@ -176,3 +177,58 @@ double md_integrate_cell(Particle *p, const SimParams *sp,
     *Kout = K;
     return U;
 }
+
+// ======================================================
+//  CELL-LIST MD VELOCITY VERLET (HALF-SHELL PARALLEL)
+//  Uses forces from md_compute_forces_cell_mt
+// ======================================================
+double md_integrate_cell_mt(Particle *p, const SimParams *sp,
+                                       CellList *cl,
+                                       double *Kout)
+{
+    size_t N = sp->N;
+    double dt = sp->dt;
+    double half = 0.5 * dt;
+    double L = sp->L;
+
+    for (size_t i = 0; i < N; i++) {
+        p[i].vx += half * p[i].fx;
+        p[i].vy += half * p[i].fy;
+        p[i].vz += half * p[i].fz;
+    }
+
+    for (size_t i = 0; i < N; i++) {
+        p[i].x += dt * p[i].vx;
+        p[i].y += dt * p[i].vy;
+        p[i].z += dt * p[i].vz;
+
+        if (p[i].x < 0) p[i].x += L; 
+        else if (p[i].x >= L) p[i].x -= L;
+        
+        if (p[i].y < 0) p[i].y += L; 
+        else if (p[i].y >= L) p[i].y -= L;
+        
+        if (p[i].z < 0) p[i].z += L; 
+        else if (p[i].z >= L) p[i].z -= L;
+    }
+
+    cell_list_build(cl, p, L);
+
+    // this function handles its own thread creation/joining internally
+    double U = md_compute_forces_cell_mt(p, sp, cl);
+
+    double K = 0.0;
+    for (size_t i = 0; i < N; i++) {
+        p[i].vx += half * p[i].fx;
+        p[i].vy += half * p[i].fy;
+        p[i].vz += half * p[i].fz;
+
+        K += 0.5 * (p[i].vx*p[i].vx +
+                    p[i].vy*p[i].vy +
+                    p[i].vz*p[i].vz);
+    }
+
+    *Kout = K;
+    return U;
+}
+
