@@ -1,21 +1,28 @@
 # ================================
 #   Makefile for LJ MD Engine
+#   With Pthreads Support
 # ================================
 
 CC      = gcc
-CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude
-LDFLAGS = -lm
+CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude -pthread
+LDFLAGS = -lm -lpthread
 
 CXX     = g++
 CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
 
 PYTHON  = /opt/homebrew/bin/python3     # for plot_lj.py
 
+# Number of threads for pthread neighbor list (default: 4)
+# Override with: make NTHREADS=8
+NTHREADS ?= 4
+CFLAGS += -DNBL_NUM_THREADS=$(NTHREADS)
+
 SRC = \
     src/main.c \
     src/md.c \
     src/cell_list.c \
     src/neighbor_list.c \
+    src/neighbor_list_pthread.c \
     src/md_io.c \
     src/pdb_importer.c
 
@@ -29,6 +36,10 @@ COMPARE_SRC = compare.cpp
 # Default build
 # -----------------------------------------
 all: output $(TARGET)
+	@echo ""
+	@echo "Build complete with $(NTHREADS) threads for pthread neighbor list"
+	@echo "To change: make clean && make NTHREADS=8"
+	@echo ""
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(TARGET) $(LDFLAGS)
@@ -59,56 +70,94 @@ run: $(TARGET) output
 
 # -----------------------------------------
 # Run comparison tests (writes to text file)
+# Compares positions from all 4 methods
 # -----------------------------------------
 compare: $(COMPARE_BIN)
 	@echo "Writing comparison report to output/compare_report.txt"
 	@rm -f output/compare_report.txt
 
-	@echo "Running PDB comparison tests" >> output/compare_report.txt
+	@echo "========================================" >> output/compare_report.txt
+	@echo "PDB COMPARISON REPORT" >> output/compare_report.txt
+	@echo "Energy Conservation & Numerical Stability Test" >> output/compare_report.txt
+	@echo "========================================" >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "1) full_positions, cell_positions, nbl_positions vs each other" >> output/compare_report.txt
-	@echo "Comparing output/full_positions.pdb vs output/cell_positions.pdb" >> output/compare_report.txt
+	@echo "1) Compare all methods against each other (after autotuning steps)" >> output/compare_report.txt
+	@echo "----------------------------------------" >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "FULL vs CELL-LIST:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/full_positions.pdb output/cell_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing output/full_positions.pdb vs output/nbl_positions.pdb" >> output/compare_report.txt
+	@echo "FULL vs NEIGHBOR-LIST (Serial):" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/full_positions.pdb output/nbl_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing output/cell_positions.pdb vs output/nbl_positions.pdb" >> output/compare_report.txt
+	@echo "FULL vs NEIGHBOR-LIST (Pthread):" >> output/compare_report.txt
+	@./$(COMPARE_BIN) output/full_positions.pdb output/nbl_pthread_positions.pdb >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "CELL-LIST vs NEIGHBOR-LIST (Serial):" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/cell_positions.pdb output/nbl_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "2) final_positions vs all other outputs" >> output/compare_report.txt
-	@echo "Comparing output/final_positions.pdb vs output/full_positions.pdb" >> output/compare_report.txt
+	@echo "CELL-LIST vs NEIGHBOR-LIST (Pthread):" >> output/compare_report.txt
+	@./$(COMPARE_BIN) output/cell_positions.pdb output/nbl_pthread_positions.pdb >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "NEIGHBOR-LIST (Serial) vs NEIGHBOR-LIST (Pthread):" >> output/compare_report.txt
+	@./$(COMPARE_BIN) output/nbl_positions.pdb output/nbl_pthread_positions.pdb >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "2) Final positions vs all autotuning outputs" >> output/compare_report.txt
+	@echo "----------------------------------------" >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "FINAL vs FULL:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/final_positions.pdb output/full_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing output/final_positions.pdb vs output/cell_positions.pdb" >> output/compare_report.txt
+	@echo "FINAL vs CELL-LIST:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/final_positions.pdb output/cell_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing output/final_positions.pdb vs output/nbl_positions.pdb" >> output/compare_report.txt
+	@echo "FINAL vs NEIGHBOR-LIST (Serial):" >> output/compare_report.txt
 	@./$(COMPARE_BIN) output/final_positions.pdb output/nbl_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "3) input.pdb vs all outputs" >> output/compare_report.txt
-	@echo "Comparing input.pdb vs output/full_positions.pdb" >> output/compare_report.txt
+	@echo "FINAL vs NEIGHBOR-LIST (Pthread):" >> output/compare_report.txt
+	@./$(COMPARE_BIN) output/final_positions.pdb output/nbl_pthread_positions.pdb >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "3) Input vs all outputs (drift from initial)" >> output/compare_report.txt
+	@echo "----------------------------------------" >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "INPUT vs FULL:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) input.pdb output/full_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing input.pdb vs output/cell_positions.pdb" >> output/compare_report.txt
+	@echo "INPUT vs CELL-LIST:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) input.pdb output/cell_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing input.pdb vs output/nbl_positions.pdb" >> output/compare_report.txt
+	@echo "INPUT vs NEIGHBOR-LIST (Serial):" >> output/compare_report.txt
 	@./$(COMPARE_BIN) input.pdb output/nbl_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
 
-	@echo "Comparing input.pdb vs output/final_positions.pdb" >> output/compare_report.txt
+	@echo "INPUT vs NEIGHBOR-LIST (Pthread):" >> output/compare_report.txt
+	@./$(COMPARE_BIN) input.pdb output/nbl_pthread_positions.pdb >> output/compare_report.txt
+	@echo "" >> output/compare_report.txt
+
+	@echo "INPUT vs FINAL:" >> output/compare_report.txt
 	@./$(COMPARE_BIN) input.pdb output/final_positions.pdb >> output/compare_report.txt
 	@echo "" >> output/compare_report.txt
+
+	@echo "========================================" >> output/compare_report.txt
+	@echo "Report complete." >> output/compare_report.txt
+	@echo "Comparison report written to output/compare_report.txt"
+	@cat output/compare_report.txt
 
 # -----------------------------------------
 # Plot energy graphs (Python script)
@@ -132,11 +181,13 @@ distclean: clean
 	rm -f output/full_positions.pdb
 	rm -f output/cell_positions.pdb
 	rm -f output/nbl_positions.pdb
+	rm -f output/nbl_pthread_positions.pdb
 	rm -f output/final_positions.pdb
 
 	rm -f output/full_energies.csv
 	rm -f output/cell_energies.csv
 	rm -f output/nbl_energies.csv
+	rm -f output/nbl_pthread_energies.csv
 	rm -f output/final_energies.csv
 
 	rm -f energy_final_logplot.png
