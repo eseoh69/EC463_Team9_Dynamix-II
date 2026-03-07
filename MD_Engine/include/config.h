@@ -9,7 +9,7 @@
 #define CONF_EPSILON     1.0     // LJ epsilon (defines energy scale)
 
 // -----------------------------
-// LJ Cutoff (in Angstrom units)
+// LJ Cutoff (in Angstroms)
 // -----------------------------
 #define CONF_CUTOFF      30
 

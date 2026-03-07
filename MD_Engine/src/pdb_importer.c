@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "config.h"
+#include <math.h>
 
 int pdb_importer(const char *path,
                  Particle *p, int maxN,
@@ -90,4 +92,62 @@ int binary_importer(const char *path,
     free(buffer);
     fclose(f);
     return n_atoms;
+}
+
+int read_input (const char * input_path,Particle ** p0, SimParams * sp){
+
+   printf("Converting input file via Python script...\n");
+    char command[256];
+    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
+    int status = system(command);
+
+    if (status != 0) {
+        fprintf(stderr, "Error: Python conversion failed.\n");
+        return -1;
+    }
+
+    FILE *f_meta = fopen("temp_metadata.txt", "r");
+    int N;
+    if (f_meta) {
+        fscanf(f_meta, "%d", &N);
+        fclose(f_meta);
+    } else {
+        fprintf(stderr, "Metadata not found!\n");
+        return -1;
+    }
+
+    // Now you can allocate exactly what you need
+    *p0 = malloc(N * sizeof(Particle));
+
+    // Now you know temp_coords.bin exists and is ready
+    int foo;
+
+    double xmin, xmax, ymin, ymax, zmin, zmax;
+    foo = binary_importer("temp_coords.bin", *p0, N,
+                         &xmin, &xmax,
+                         &ymin, &ymax,
+                         &zmin, &zmax);
+    (void)foo; // Suppress unused variable warning
+    
+    if (N <= 0) {
+        fprintf(stderr, "Failed to read PDB: %s\n", input_path);
+        free(*p0);
+        return -1;
+    }
+
+    printf("deleting temp files \n");
+    status = system("rm -rf temp_coords.bin");
+    status = system("rm -rf temp_metadata.txt");
+
+    printf("Loaded %d atoms from %s\n", N, input_path);
+    printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
+           xmax - xmin, ymax - ymin, zmax - zmin);
+
+    // set N and L
+    sp->L = fmax(fmax(xmax - xmin, ymax - ymin), zmax - zmin);
+    if (sp->L <= 0.0) sp->L = CONF_BOX_MAX;
+
+    sp->N = (size_t)N;
+    return 0;
+    
 }
