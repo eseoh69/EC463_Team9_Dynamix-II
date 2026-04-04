@@ -1,11 +1,19 @@
 #ifndef MD_IO_H
 #define MD_IO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "md.h"
 
 //
 // Write particles to PDB file
 //
 void io_write_pdb(const char *path, Particle *p, size_t N);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

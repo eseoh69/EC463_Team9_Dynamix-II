@@ -70,57 +70,62 @@ int main(int argc, char **argv)
 
     printf("\n================ INITIALIZING SIMULATION ================\n");
     
-    double xmin, xmax, ymin, ymax, zmin, zmax;
+//    double xmin, xmax, ymin, ymax, zmin, zmax;
 
-    printf("Converting input file via Python script...\n");
-    char command[256];
-    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
-    int status = system(command);
+    Particle * p0;
+    SimParams sp;
+    read_input(input_path, &p0, &sp);
 
-    if (status != 0) {
-        fprintf(stderr, "Error: Python conversion failed.\n");
-        return 1;
-    }
-    FILE *f_meta = fopen("temp_metadata.txt", "r");
-    int N;
-    if (f_meta) {
-        fscanf(f_meta, "%d", &N);
-        fclose(f_meta);
-    } else {
-        fprintf(stderr, "Metadata not found!\n");
-        return 1;
-    }
+//    printf("Converting input file via Python script...\n");
+//    char command[256];
+//    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
+//    int status = system(command);
+//
+//    if (status != 0) {
+//        fprintf(stderr, "Error: Python conversion failed.\n");
+//        return 1;
+//    }
+//    FILE *f_meta = fopen("temp_metadata.txt", "r");
+//    int N;
+//    if (f_meta) {
+//        fscanf(f_meta, "%d", &N);
+//        fclose(f_meta);
+//    } else {
+//        fprintf(stderr, "Metadata not found!\n");
+//        return 1;
+//    }
+//
+//    // Now you can allocate exactly what you need
+//    Particle *p0 = malloc(N * sizeof(Particle));
+//
+//    // Now you know temp_coords.bin exists and is ready
+//    int foo;
+//    foo = binary_importer("temp_coords.bin", p0, N,
+//                         &xmin, &xmax,
+//                         &ymin, &ymax,
+//                         &zmin, &zmax);
+//    (void)foo; // Suppress unused variable warning
+//    
+//    if (N <= 0) {
+//        fprintf(stderr, "Failed to read PDB: %s\n", input_path);
+//        free(p0);
+//        return 1;
+//    }
+//
+//    printf("deleting temp files \n");
+//    status = system("rm -rf temp_coords.bin");
+//    status = system("rm -rf temp_metadata.txt");
+//
+//    printf("Loaded %d atoms from %s\n", N, input_path);
+//    printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
+//           xmax - xmin, ymax - ymin, zmax - zmin);
 
-    // Now you can allocate exactly what you need
-    Particle *p0 = malloc(N * sizeof(Particle));
-
-    // Now you know temp_coords.bin exists and is ready
-    int foo;
-    foo = binary_importer("temp_coords.bin", p0, N,
-                         &xmin, &xmax,
-                         &ymin, &ymax,
-                         &zmin, &zmax);
-    (void)foo; // Suppress unused variable warning
-    
-    if (N <= 0) {
-        fprintf(stderr, "Failed to read PDB: %s\n", input_path);
-        free(p0);
-        return 1;
-    }
-
-    printf("deleting temp files \n");
-    status = system("rm -rf temp_coords.bin");
-    status = system("rm -rf temp_metadata.txt");
-
-    printf("Loaded %d atoms from %s\n", N, input_path);
-    printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
-           xmax - xmin, ymax - ymin, zmax - zmin);
 
     // ------------------------------------------------
     // 2. Set up simulation parameters
     // ------------------------------------------------
-    SimParams sp;
-    sp.N        = (size_t)N;
+//    SimParams sp;
+//    sp.N        = (size_t)N;
     sp.sigma    = CONF_SIGMA;
     sp.epsilon  = CONF_EPSILON;
     sp.rc       = CONF_CUTOFF;
@@ -128,9 +133,10 @@ int main(int argc, char **argv)
     sp.dt       = CONF_DELTA_T;
     sp.nthreads = N_THREADS;
 
+    int N = sp.N;
     // Use largest span as box length
-    sp.L = fmax(fmax(xmax - xmin, ymax - ymin), zmax - zmin);
-    if (sp.L <= 0.0) sp.L = CONF_BOX_MAX;
+//    sp.L = fmax(fmax(xmax - xmin, ymax - ymin), zmax - zmin);
+//    if (sp.L <= 0.0) sp.L = CONF_BOX_MAX;
 
     printf("Simulation box L = %.3f\n", sp.L);
     printf("rc = %.3f, dt = %.5f, steps = %d\n",
