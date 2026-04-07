@@ -66,8 +66,7 @@ int main(int argc, char **argv) {
     double time_full = cuda_full(&sp, p_full, f_full, AUTOTUNE_N_TIMESTEPS);
     fclose(f_full);
     io_write_pdb("output/full_positions.pdb", p_full, sp.N);
-    printf("Full O(N^2) done.   Time: %.6f s  (%.3f ms/step)\n",
-           time_full, 1000.0 * time_full / AUTOTUNE_N_TIMESTEPS);
+    printf("Full O(N^2) done.   Time: %.6f s\n", time_full);
 
     printf("\n================ CELL-LIST GPU (%d steps) ================\n",
            AUTOTUNE_N_TIMESTEPS);
@@ -76,8 +75,7 @@ int main(int argc, char **argv) {
     double time_cell = cuda_cell_list(&sp, p_cell, f_cell, AUTOTUNE_N_TIMESTEPS);
     fclose(f_cell);
     io_write_pdb("output/cell_positions.pdb", p_cell, sp.N);
-    printf("Cell-list done.     Time: %.6f s  (%.3f ms/step)\n",
-           time_cell, 1000.0 * time_cell / AUTOTUNE_N_TIMESTEPS);
+    printf("Cell-list done.     Time: %.6f s\n", time_cell);
 
     printf("\n================ NEIGHBOR-LIST GPU (%d steps) ================\n",
            AUTOTUNE_N_TIMESTEPS);
@@ -86,8 +84,7 @@ int main(int argc, char **argv) {
     double time_nbl = cuda_nbl(&sp, p_nbl, f_nbl, AUTOTUNE_N_TIMESTEPS);
     fclose(f_nbl);
     io_write_pdb("output/nbl_positions.pdb", p_nbl, sp.N);
-    printf("Neighbor-list done. Time: %.6f s  (%.3f ms/step)\n",
-           time_nbl, 1000.0 * time_nbl / AUTOTUNE_N_TIMESTEPS);
+    printf("Neighbor-list done. Time: %.6f s\n", time_nbl);
 
     // ------------------------------------------------
     // TIMING COMPARISON
