@@ -40,7 +40,6 @@
 *.dSYM/
 *.su
 *.idb
-*.pdb
 
 # Kernel Module Compile Results
 *.mod*
@@ -50,3 +49,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Python virtual environment 
+venv/
