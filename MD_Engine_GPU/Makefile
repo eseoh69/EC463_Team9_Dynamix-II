@@ -8,7 +8,8 @@ NVCCFLAGS = -O3 -arch=sm_86 -Iinclude -rdc=true
 TARGET    = md_run
 DLINK_OBJ = device_link.o
 
-SRC = src/main.cu src/cuda_cell_list.cu src/cuda_nbl.cu src/cuda_full.cu src/md_io.c
+SRC = src/main.cu src/cuda_cell_list.cu src/cuda_nbl.cu src/cuda_full.cu \
+      src/gpu_manhattan_cell_cap.cu src/cell_list.c src/md_io.c
 OBJ = $(patsubst src/%.cu,src/%.o,$(patsubst src/%.c,src/%.o,$(SRC)))
 
 # -----------------------------------------
