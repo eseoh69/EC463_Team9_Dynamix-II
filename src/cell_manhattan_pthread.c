@@ -21,8 +21,10 @@ static inline int wrap(int a, int nc) {
     return a;
 }
 
-// 7-cell Manhattan neighborhood (radius 1): self + ±x ±y ±z
-static inline void manhattan_neighbors_7(const CellList *cl, int cell, int out7[7]) {
+// Full 27-cell (3x3x3) neighborhood — replaces the incorrect 7-cell face-only scheme.
+// Edge/corner-adjacent cells share an edge/vertex and can have particles within rc,
+// so face-only missed pairs causing energy blow-up.
+static inline void neighbors_27(const CellList *cl, int cell, int out27[27]) {
     const int nc = cl->nc;
 
     int z = cell / (nc * nc);
@@ -30,13 +32,11 @@ static inline void manhattan_neighbors_7(const CellList *cl, int cell, int out7[
     int y = rem / nc;
     int x = rem % nc;
 
-    out7[0] = cell;
-    out7[1] = cell_index(wrap(x + 1, nc), y, z, nc);
-    out7[2] = cell_index(wrap(x - 1, nc), y, z, nc);
-    out7[3] = cell_index(x, wrap(y + 1, nc), z, nc);
-    out7[4] = cell_index(x, wrap(y - 1, nc), z, nc);
-    out7[5] = cell_index(x, y, wrap(z + 1, nc), nc);
-    out7[6] = cell_index(x, y, wrap(z - 1, nc), nc);
+    int k = 0;
+    for (int dz = -1; dz <= 1; dz++)
+    for (int dy = -1; dy <= 1; dy++)
+    for (int dx = -1; dx <= 1; dx++)
+        out27[k++] = cell_index(wrap(x+dx,nc), wrap(y+dy,nc), wrap(z+dz,nc), nc);
 }
 
 typedef struct {
@@ -69,11 +69,11 @@ static void* thread_compute_force_manhattan(void *arg) {
     const double tiny2 = 1e-30;
     double U = 0.0;
 
-    int neigh[7];
+    int neigh[27];
 
     for (int cell = ctx->cell_start; cell < ctx->cell_end; cell++) {
 
-        manhattan_neighbors_7(cl, cell, neigh);
+        neighbors_27(cl, cell, neigh);
 
         const int base_cell = cell * CELL_CAP;
 
@@ -81,7 +81,7 @@ static void* thread_compute_force_manhattan(void *arg) {
             const int i = cl->cells[base_cell + a];
             if (i < 0) continue;
 
-            for (int n = 0; n < 7; n++) {
+            for (int n = 0; n < 27; n++) {
                 const int nb = neigh[n];
 
                 // Cell-level half-shell: only compute each cell-pair once

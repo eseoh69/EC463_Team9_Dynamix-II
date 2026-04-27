@@ -23,14 +23,16 @@ def main():
         # 3. Save binary coordinates
         positions.tofile(bin_output)
 
-        # 4. Save metadata (N atoms)
+        # 4. Save metadata (N atoms, optional box dimensions)
         ext_no_dot = Path(input_path).suffix[1:]
         with open(meta_output, "w") as f:
             f.write(f"{str(len(u.atoms))}\n")
             f.write(f"{ext_no_dot}\n")
-            if ext_no_dot=="gro":
-              dimensions = u.dimensions[:3] # [Lx, Ly, Lz] in Angstroms
-              f.write(f"{len(u.atoms)} {dimensions[0]} {dimensions[1]} {dimensions[2]}")
+            # Write box dimensions for gro files or pdb files with CRYST1 record
+            dims = u.dimensions
+            if dims is not None and dims[0] > 0:
+                dimensions = dims[:3]
+                f.write(f"{len(u.atoms)} {dimensions[0]} {dimensions[1]} {dimensions[2]}\n")
 
         print(f"Successfully converted {len(u.atoms)} atoms.")
         print(f"Output: {bin_output}")

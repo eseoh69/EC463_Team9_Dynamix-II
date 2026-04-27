@@ -46,6 +46,12 @@ struct CellList;
 struct NeighborList;
 
 //
+// Velocity initialization — Maxwell-Boltzmann at temperature kT (LJ units).
+// Removes center-of-mass drift. Call once before any integration.
+//
+void md_init_velocities(Particle *p, size_t N, double kT, unsigned long seed);
+
+//
 // FULL MD
 //
 double md_compute_forces_full(Particle *p, const SimParams *sp);

@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+ #define _POSIX_C_SOURCE 200112L
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +13,7 @@
 #include "cell_list.h"
 #include "neighbor_list.h"
 #include "cell_mt.h"
+#include "manhat.h"
 #include "neighbor_list_pthread.h"
 #include "cell_manhattan_pthread.h"
 
@@ -198,6 +199,13 @@ int main(int argc, char **argv)
     printf("Bounds: dx = %.3f  dy = %.3f  dz = %.3f\n",
            xmax - xmin, ymax - ymin, zmax - zmin);
 
+
+    FILE *f_input_record = fopen("output/input_used.txt", "w");
+    if (f_input_record) {
+        fprintf(f_input_record, "%s\n", input_path);
+        fclose(f_input_record);
+    }
+
     // ------------------------------------------------
     // 2. Set up simulation parameters
     // ------------------------------------------------
@@ -228,6 +236,7 @@ int main(int argc, char **argv)
     // ------------------------------------------------
     Particle *p_full = malloc((size_t)N * sizeof(Particle));
     Particle *p_cell = malloc((size_t)N * sizeof(Particle));
+    Particle *p_cell_manhat  = malloc((size_t)N * sizeof(Particle));
     Particle *p_nbl  = malloc((size_t)N * sizeof(Particle));
     Particle *p_full_pthread = malloc((size_t)N * sizeof(Particle));
     Particle *p_cell_mt = malloc((size_t)N * sizeof(Particle));
@@ -235,15 +244,16 @@ int main(int argc, char **argv)
     Particle *p_manhattan = malloc((size_t)N * sizeof(Particle));
     Particle *p_final = malloc((size_t)N * sizeof(Particle));
 
-    if (!p_full || !p_cell || !p_nbl || !p_full_pthread || !p_cell_mt || !p_nbl_pthread || !p_manhattan || !p_final) {
+    if (!p_full || !p_cell || !p_cell_manhat || !p_nbl || !p_full_pthread || !p_cell_mt || !p_nbl_pthread || !p_manhattan || !p_final) {
         fprintf(stderr, "Allocation failure for particle copies\n");
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_cell_manhat); free(p_nbl);
         free(p_full_pthread); free(p_cell_mt); free(p_nbl_pthread); free(p_manhattan); free(p_final);
         return 1;
     }
 
     copy_particles(p_full, p0, (size_t)N);
     copy_particles(p_cell, p0, (size_t)N);
+    copy_particles(p_cell_manhat, p0, (size_t)N);    
     copy_particles(p_nbl,  p0, (size_t)N);
     copy_particles(p_full_pthread, p0, (size_t)N);
     copy_particles(p_cell_mt, p0, (size_t)N);
@@ -262,7 +272,7 @@ int main(int argc, char **argv)
 
     FILE *f_full = open_energy_csv("output/full_energies.csv");
     if (!f_full) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_cell_manhat); free(p_nbl);
         free(p_full_pthread);free(p_cell_mt); free(p_nbl_pthread); free(p_manhattan); free(p_final);
         return 1;
     }
@@ -291,7 +301,7 @@ int main(int argc, char **argv)
 
     FILE *f_cell = open_energy_csv("output/cell_energies.csv");
     if (!f_cell) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_cell_manhat); free(p_nbl);
         free(p_full_pthread);free(p_cell_mt); free(p_nbl_pthread); free(p_manhattan); free(p_final);
         return 1;
     }
@@ -316,6 +326,41 @@ int main(int argc, char **argv)
     fclose(f_cell);
     io_write_pdb("output/cell_positions.pdb", p_cell, (size_t)N);
     printf("CELL-LIST MD done. Time: %.6f seconds\n", time_cell);
+
+
+    // ------------------------------------------------
+    // 5.5 CELL-LIST Manhattan  MD - WITH TIMING
+    // ------------------------------------------------
+    printf("\n================ CELL-LIST (MANHATTAN) MD ================\n");
+
+    FILE *f_cell_manhat = open_energy_csv("output/cell_manhat_energies.csv");
+    if (!f_cell_manhat) {
+        free(p0); free(p_full); free(p_cell); free(p_cell_manhat); free(p_nbl);
+        free(p_full_pthread);free(p_cell_mt); free(p_nbl_pthread); free(p_manhattan); free(p_final);
+        return 1;
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+
+    CellList cl_manhat;
+    cell_list_init(&cl_manhat, (size_t)N, sp.L, sp.rc);
+    cell_list_build(&cl_manhat, p_cell_manhat, sp.L);
+    (void) md_compute_forces_manhat(p_cell, &sp, &cl);
+
+    for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
+        double K, U;
+        U = md_integrate_manhat(p_cell_manhat, &sp, &cl_manhat, &K);
+        //printf("Particle 1, timestep: %d, position x: %8.3f, y: %8.3f, z: %8.3f\n", step, p_cell[0].x, p_cell[0].y, p_cell[0].z);
+        fprintf(f_cell_manhat, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    double time_cell_manhat = interval(time_start, time_stop);
+
+    fclose(f_cell_manhat);
+    io_write_pdb("output/cell_manhat_positions.pdb", p_cell_manhat, (size_t)N);
+    printf("CELL-LIST (MANHATTAN) MD done. Time: %.6f seconds\n", time_cell_manhat);
+
 
     // ------------------------------------------------
     // 6. NEIGHBOR-LIST MD (Serial) - WITH TIMING
@@ -363,27 +408,27 @@ int main(int argc, char **argv)
 
     FILE *f_full_pthread = open_energy_csv("output/full_pthread_energies.csv");
     if (!f_full_pthread) {
-        free(p0); free(p_full); free(p_cell); free(p_nbl);
+        free(p0); free(p_full); free(p_cell); free(p_cell_manhat); free(p_nbl);
         free(p_full_pthread); free(p_cell_mt); free(p_nbl_pthread); free(p_manhattan); free(p_final);
         return 1;
     }
 
-    int nthreads = 2;
+    //int nthreads = 2;
 
     // Start timing for FULL
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
 
     // initial forces
-    (void) md_compute_forces_full_pthreads(p_full_pthread, &sp, nthreads);
+    (void) md_compute_forces_full_pthreads(p_full_pthread, &sp, sp.nthreads);
 
     for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
         double K, U;
-        U = md_integrate_full_pthreads(p_full_pthread, &sp, &K, nthreads);
+        U = md_integrate_full_pthreads(p_full_pthread, &sp, &K, sp.nthreads);
         fprintf(f_full, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
     // End timing for FULL
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    clock_gettime(CLOCK_MONOTONIC, &time_stop);
     double time_full_pthread = interval(time_start, time_stop);
 
     fclose(f_full_pthread);
@@ -405,7 +450,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
 
     CellList cl_half;
     cell_list_init(&cl_half, (size_t)N, sp.L, sp.rc);
@@ -419,7 +464,7 @@ int main(int argc, char **argv)
         fprintf(f_cell_mt, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    clock_gettime(CLOCK_MONOTONIC, &time_stop);
     double time_cell_mt = interval(time_start, time_stop);
 
     fclose(f_cell_mt);
@@ -430,7 +475,7 @@ int main(int argc, char **argv)
     // 7. NEIGHBOR-LIST MD (Pthread) - WITH TIMING
     // ------------------------------------------------
     printf("\n================ NEIGHBOR-LIST MD (Pthread) ================\n");
-    nbl_pthread_print_info();
+    //nbl_pthread_print_info();
 
     FILE *f_nbl_pthread = open_energy_csv("output/nbl_pthread_energies.csv");
     if (!f_nbl_pthread) {
@@ -439,34 +484,34 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
 
-    nbl_pthread_init((size_t)N);
+    nbl_pthread_init((size_t)N, sp.nthreads);
 
     CellList cl3;
     cell_list_init(&cl3, (size_t)N, sp.L, sp.rc);
     cell_list_build(&cl3, p_nbl_pthread, sp.L);
 
     NeighborList nl_pthread;
-    nbl_init(&nl_pthread, (size_t)N, sp.rc, 0.3 * sp.rc);
-    nbl_build_pthread(&nl_pthread, &cl3, p_nbl_pthread, sp.L, sp.rc, (size_t)N);
+    nbl_init(&nl_pthread, (size_t)N, sp.rc, sp.rc);
+    nbl_build_pthread(&nl_pthread, &cl3, p_nbl_pthread, sp.L, sp.rc, (size_t)N, sp.nthreads);
 
-    (void) md_compute_forces_nbl_pthread(p_nbl_pthread, &sp, &nl_pthread);
+    (void) md_compute_forces_nbl_pthread(p_nbl_pthread, &sp, &nl_pthread, sp.nthreads);
 
     for (int step = 0; step < AUTOTUNE_N_TIMESTEPS; step++) {
         double K, U;
-        U = md_integrate_nbl_pthread(p_nbl_pthread, &sp, &nl_pthread, &cl3, &K);
+        U = md_integrate_nbl_pthread(p_nbl_pthread, &sp, &nl_pthread, &cl3, &K, sp.nthreads);
         fprintf(f_nbl_pthread, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    clock_gettime(CLOCK_MONOTONIC, &time_stop);
     double time_nbl_pthread = interval(time_start, time_stop);
 
     fclose(f_nbl_pthread);
     io_write_pdb("output/nbl_pthread_positions.pdb", p_nbl_pthread, (size_t)N);
     printf("NEIGHBOR-LIST MD (Pthread) done. Time: %.6f seconds\n", time_nbl_pthread);
-    printf("Memory usage for private arrays: %.2f MB\n",
-           nbl_pthread_memory_usage((size_t)N) / (1024.0 * 1024.0));
+    //printf("Memory usage for private arrays: %.2f MB\n",
+      //s     nbl_pthread_memory_usage((((size_t)N) / (1024.0 * 1024.0)), sp.nthreads));
 
     // ------------------------------------------------
     // 7.5 MANHATTAN CELL-LIST MD (Pthread) - WITH TIMING
@@ -481,7 +526,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_start);
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
 
     CellList cl_manh;
     cell_list_init(&cl_manh, (size_t)N, sp.L, sp.rc);
@@ -496,7 +541,7 @@ int main(int argc, char **argv)
         fprintf(f_manh, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
     }
 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time_stop);
+    clock_gettime(CLOCK_MONOTONIC, &time_stop);
     double time_manh = interval(time_start, time_stop);
 
     fclose(f_manh);
@@ -511,22 +556,23 @@ int main(int argc, char **argv)
     printf("========================================\n");
     printf("FULL O(N^2):                      %.6f seconds (1.00x speedup)\n", time_full);
     printf("CELL-LIST:                        %.6f seconds (%.2fx speedup)\n", time_cell, time_full/time_cell);
+    printf("CELL-LIST MANHATTAN:              %.6f seconds (%.2fx speedup)\n", time_cell_manhat, time_full/time_cell_manhat);
     printf("NEIGHBOR-LIST:                    %.6f seconds (%.2fx speedup)\n", time_nbl, time_full/time_nbl);
     printf("FULL O(N^2) PTHREADS              %.6f seconds (%.2fx speedup)\n", time_full_pthread, time_full/time_full_pthread);
     printf("CELL-LIST HALF-SHELL PTHREADS:    %.6f seconds (%.2fx speedup)\n", time_cell_mt, time_full/time_cell_mt);
     printf("CELL-LIST MANHATTAN PTHREADS:     %.6f seconds (%.2fx speedup)\n", time_manh, time_full/time_manh);
-    printf("NBL-PTHREAD PTHREADS:             %.6f seconds (%.2fx speedup)\n",time_nbl_pthread, time_full/time_nbl_pthread);
+    printf("NBL PTHREADS:                     %.6f seconds (%.2fx speedup)\n",time_nbl_pthread, time_full/time_nbl_pthread);
     printf("========================================\n");
 
     // Determine fastest
-    const char *fastest_name = "FULL O(N^2)";
+    const char *fastest_name = "FULL O(N^2) (Serial)";
     int fastest_method = 0;
     double fastest_time = time_full;
 
     if (time_cell < fastest_time) {
         fastest_time = time_cell;
         fastest_method = 1;
-        fastest_name = "CELL-LIST";
+        fastest_name = "CELL-LIST (Serial)";
     }
     if (time_nbl < fastest_time) {
         fastest_time = time_nbl;
@@ -536,22 +582,27 @@ int main(int argc, char **argv)
     if (time_full_pthread < fastest_time) {
         fastest_time = time_nbl;
         fastest_method = 3;
-        fastest_name = "FULL O(N^2) (PTHREAD)";
+        fastest_name = "FULL O(N^2) (Pthread)";
     }
     if (time_cell_mt < fastest_time) {
         fastest_time = time_cell_mt;
         fastest_method = 4;
-        fastest_name = "CELL-LIST HALF-SHELL MT";
+        fastest_name = "CELL-LIST HALF-SHELL (Pthread)";
     }
     if (time_nbl_pthread < fastest_time) {
         fastest_time = time_nbl_pthread;
         fastest_method = 5;
-        fastest_name = "NBL-PTHREAD";
+        fastest_name = "NBL PTHREAD";
     }
     if (time_manh < fastest_time) {
         fastest_time = time_manh;
         fastest_method = 6;
         fastest_name = "MANHATTAN CELL-LIST (Pthread)";
+    }
+    if (time_cell_manhat < fastest_time) {
+        fastest_time = time_cell_manhat;
+        fastest_method = 7;
+        fastest_name = "CELL-LIST MANHATTAN (Serial)";
     }
 
     printf("\nFASTEST METHOD: %s (%.6f seconds)\n", fastest_name, fastest_time);
@@ -656,13 +707,13 @@ int main(int argc, char **argv)
 
         NeighborList nl_final;
         nbl_init(&nl_final, (size_t)N, sp.rc, 0.3 * sp.rc);
-        nbl_build_pthread(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N);
+        nbl_build_pthread(&nl_final, &cl_final, p_final, sp.L, sp.rc, (size_t)N, sp.nthreads);
 
-        md_compute_forces_nbl_pthread(p_final, &sp, &nl_final);
+        md_compute_forces_nbl_pthread(p_final, &sp, &nl_final, sp.nthreads);
 
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
-            U = md_integrate_nbl_pthread(p_final, &sp, &nl_final, &cl_final, &K);
+            U = md_integrate_nbl_pthread(p_final, &sp, &nl_final, &cl_final, &K, sp.nthreads);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
         }
 
@@ -683,6 +734,23 @@ int main(int argc, char **argv)
         for (int step = 0; step < USER_N_TIMESTEPS; step++) {
             double K, U;
             U = md_integrate_manhattan_pthread(p_final, &sp, &cl_final, &K, sp.nthreads);
+            fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
+        }
+
+        free(cl_final.counts);
+        free(cl_final.cells);
+    }
+
+    else if (fastest_method == 7) {
+        CellList cl_final;
+        cell_list_init(&cl_final, (size_t)N, sp.L, sp.rc);
+        cell_list_build(&cl_final, p_final, sp.L);
+
+        md_compute_forces_manhat(p_final, &sp, &cl_final);
+
+        for (int step = 0; step < USER_N_TIMESTEPS; step++) {
+            double K, U;
+            U = md_integrate_manhat(p_final, &sp, &cl_final, &K);
             fprintf(f_final, "%d,%.10f,%.10f,%.10f\n", step, K, U, K+U);
         }
 

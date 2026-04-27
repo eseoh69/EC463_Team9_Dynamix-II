@@ -1,0 +1,72 @@
+/Users/danielhenain/Desktop/MD_Engine_testing/venv/lib/python3.12/site-packages/MDAnalysis/topology/PDBParser.py:372: UserWarning: Unknown element X found for some atoms. These have been given an empty element record. If needed they can be guessed using universe.guess_TopologyAttrs(context='default', to_guess=['elements']).
+  warnings.warn(wmsg)
+Successfully converted 2048 atoms.
+Output: temp_coords.bin
+
+================ INITIALIZING SIMULATION ================
+Converting input file via Python script...
+deleting temp files 
+Loaded 2048 atoms from ./input/random_particles-2048.pdb
+Bounds: dx = 377.690  dy = 377.843  dz = 377.757
+Simulation box L = 377.843
+rc = 37.784, dt = 0.00500, steps = 1000
+Manual thread override: 4
+
+================ BEGINNING AUTOTUNING ================
+
+================ FULL O(N^2) MD ================
+FULL MD done. Time: 3.460924 seconds
+
+================ CELL-LIST MD ================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+CELL-LIST MD done. Time: 0.893272 seconds
+
+================ CELL-LIST (MANHATTAN) MD ================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+CELL-LIST (MANHATTAN) MD done. Time: 0.832263 seconds
+
+================ NEIGHBOR-LIST MD (Serial) ================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+NEIGHBOR-LIST MD (Serial) done. Time: 0.195304 seconds
+
+================ FULL O(N^2) Multithread MD ================
+FULL MD done. Time: 2.301772 seconds
+
+================ HALF-SHELL PARALLEL CELL-LIST MD ================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+HALF-SHELL MULTI-THREADED CELL-LIST MD done. Time: 0.203598 seconds
+
+================ NEIGHBOR-LIST MD (Pthread) ================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+NEIGHBOR-LIST MD (Pthread) done. Time: 0.164367 seconds
+
+================ MANHATTAN CELL-LIST MD (Pthread) ================
+Manhattan threads: 4
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+MANHATTAN CELL-LIST (Pthread) done. Time: 0.203932 seconds
+
+========================================
+PERFORMANCE COMPARISON
+========================================
+FULL O(N^2):                      3.460924 seconds (1.00x speedup)
+CELL-LIST:                        0.893272 seconds (3.87x speedup)
+CELL-LIST MANHATTAN:              0.832263 seconds (4.16x speedup)
+NEIGHBOR-LIST:                    0.195304 seconds (17.72x speedup)
+FULL O(N^2) PTHREADS              2.301772 seconds (1.50x speedup)
+CELL-LIST HALF-SHELL PTHREADS:    0.203598 seconds (17.00x speedup)
+CELL-LIST MANHATTAN PTHREADS:     0.203932 seconds (16.97x speedup)
+NBL PTHREADS:                     0.164367 seconds (21.06x speedup)
+========================================
+
+FASTEST METHOD: NBL PTHREAD (0.164367 seconds)
+
+========================================
+RUNNING FULL SIMULATION WITH: NBL PTHREAD
+for 2000 TIMESTEPS
+========================================
+nc=10 cell_size=37.784301 rc=37.784301 ratio=cell_size/rc=1.000
+Final simulation complete. Time: 0.393132 seconds
+Output: output/final_energies.csv, output/final_positions.pdb
+[NBL-PTHREAD] Cleanup complete
+
+All simulations complete.

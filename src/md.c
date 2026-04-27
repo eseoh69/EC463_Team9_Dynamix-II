@@ -10,6 +10,49 @@
 
 //
 // ======================================================
+//  VELOCITY INITIALIZATION (Maxwell-Boltzmann)
+// ======================================================
+//
+// Box-Muller transform: two uniform randoms -> one Gaussian sample
+static double rand_gaussian(unsigned long *s)
+{
+    // LCG random in (0,1)
+    *s = (*s) * 6364136223846793005ULL + 1442695040888963407ULL;
+    double u1 = (double)((*s) >> 33) / (double)(1ULL << 31);
+    *s = (*s) * 6364136223846793005ULL + 1442695040888963407ULL;
+    double u2 = (double)((*s) >> 33) / (double)(1ULL << 31);
+    if (u1 < 1e-15) u1 = 1e-15;
+    return sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+}
+
+void md_init_velocities(Particle *p, size_t N, double kT, unsigned long seed)
+{
+    double sigma_v = sqrt(kT); // unit mass: <v^2> = kT per DOF
+
+    double vcmx = 0.0, vcmy = 0.0, vcmz = 0.0;
+
+    for (size_t i = 0; i < N; i++) {
+        p[i].vx = sigma_v * rand_gaussian(&seed);
+        p[i].vy = sigma_v * rand_gaussian(&seed);
+        p[i].vz = sigma_v * rand_gaussian(&seed);
+        vcmx += p[i].vx;
+        vcmy += p[i].vy;
+        vcmz += p[i].vz;
+    }
+
+    // Remove center-of-mass drift
+    vcmx /= (double)N;
+    vcmy /= (double)N;
+    vcmz /= (double)N;
+    for (size_t i = 0; i < N; i++) {
+        p[i].vx -= vcmx;
+        p[i].vy -= vcmy;
+        p[i].vz -= vcmz;
+    }
+}
+
+//
+// ======================================================
 //  FULL O(N^2) FORCE KERNEL
 // ======================================================
 //
