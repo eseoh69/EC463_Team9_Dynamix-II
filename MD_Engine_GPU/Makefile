@@ -50,6 +50,29 @@ output:
 # Run simulation
 # -----------------------------------------
 run: $(TARGET) output
+	$(BINARY) $(INPUT_FILE)
+
+# -----------------------------------------
+# Plot energy from output/ CSVs
+# -----------------------------------------
+PLOT_ENERGY_SCRIPT := test/plot_energy.py
+
+.PHONY: plot
+plot: run
+	@echo "Plotting energy from output/ ..."
+	$(PYTHON) $(PLOT_ENERGY_SCRIPT)
+	@echo "Energy plots saved to output/"
+
+# -----------------------------------------
+# Compare final PDB positions in output/
+# -----------------------------------------
+COMPARE_SCRIPT := test/compare_pdbs.py
+
+.PHONY: compare
+compare: run
+	@echo "Comparing PDB positions in output/ ..."
+	$(PYTHON) $(COMPARE_SCRIPT)
+	@echo "Comparison saved to output/pdb_comparison.txt"
 
 # -----------------------------------------
 # Clean
@@ -63,11 +86,12 @@ clean:
 # -----------------------------------------
 # Override on command line: make sweep INPUT_DIR=./myinput
 BINARY      ?= ./md_run
+INPUT_FILE  ?= input/random_particles-1024.pdb
 INPUT_DIR   ?= ./input
 OUTPUT_DIR  ?= ./results
 PYTHON      ?= python3
 SWEEP_SCRIPT := run_sweep_gpu.sh
-PLOT_SCRIPT  := plot_results_gpu.py
+PLOT_SCRIPT  := test/plot_results_gpu.py
 
 # sweep: build, run all particle counts, then plot
 .PHONY: sweep
@@ -97,4 +121,4 @@ $(OUTPUT_DIR)/timings.csv:
 	@echo "ERROR: $(OUTPUT_DIR)/timings.csv not found. Run 'make sweep' first."
 	@exit 1
 
-.PHONY: all run clean output
+.PHONY: all run clean output plot compare

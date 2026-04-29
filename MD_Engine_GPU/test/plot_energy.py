@@ -53,6 +53,7 @@ datasets = [
     ("Full O(N²)",    "output/full_energies.csv"),
     ("Cell-list",     "output/cell_energies.csv"),
     ("Neighbor-list", "output/nbl_energies.csv"),
+    ("Manhattan-cell-list", "output/manhattan_cell_energies.csv"),
     ("Final run",     "output/final_energies.csv"),
 ]
 
