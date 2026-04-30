@@ -1,0 +1,52 @@
+=== PDB POSITION COMPARISON ===
+
+Full O(N2) vs Cell-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0000%
+  std  deviation : 0.0000%
+
+Full O(N2) vs Neighbor-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0000%
+  std  deviation : 0.0000%
+
+Full O(N2) vs Manhattan-cell-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0004%
+  std  deviation : 0.0000%
+
+Full O(N2) vs Final run:
+  mean deviation : 0.0002%
+  max  deviation : 0.6618%
+  std  deviation : 0.0054%
+
+Cell-list vs Neighbor-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0000%
+  std  deviation : 0.0000%
+
+Cell-list vs Manhattan-cell-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0004%
+  std  deviation : 0.0000%
+
+Cell-list vs Final run:
+  mean deviation : 0.0002%
+  max  deviation : 0.6618%
+  std  deviation : 0.0054%
+
+Neighbor-list vs Manhattan-cell-list:
+  mean deviation : 0.0000%
+  max  deviation : 0.0004%
+  std  deviation : 0.0000%
+
+Neighbor-list vs Final run:
+  mean deviation : 0.0002%
+  max  deviation : 0.6618%
+  std  deviation : 0.0054%
+
+Manhattan-cell-list vs Final run:
+  mean deviation : 0.0002%
+  max  deviation : 0.6617%
+  std  deviation : 0.0054%
+
