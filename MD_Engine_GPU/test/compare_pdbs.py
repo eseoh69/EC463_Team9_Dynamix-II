@@ -18,6 +18,7 @@ datasets = [
     ("Full O(N2)",    "output/full_positions.pdb"),
     ("Cell-list",     "output/cell_positions.pdb"),
     ("Neighbor-list", "output/nbl_positions.pdb"),
+    ("Manhattan-cell-list", "output/manhattan_positions.pdb"),
     ("Final run",     "output/final_positions.pdb"),
 ]
 

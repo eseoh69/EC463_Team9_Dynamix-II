@@ -1,0 +1,43 @@
+/usr4/ugrad/eseoh/EC463_Team9_Dynamix-II/MD_Engine_GPU/venv/lib64/python3.6/site-packages/MDAnalysis/topology/PDBParser.py:334: UserWarning: Unknown element X found for some atoms. These have been given an empty element record. If needed they can be guessed using MDAnalysis.topology.guessers.
+  warnings.warn(wmsg)
+/usr4/ugrad/eseoh/EC463_Team9_Dynamix-II/MD_Engine_GPU/venv/lib64/python3.6/site-packages/MDAnalysis/topology/guessers.py:146: UserWarning: Failed to guess the mass for the following atom types: X
+  warnings.warn("Failed to guess the mass for the following atom types: {}".format(atom_type))
+Successfully converted 2048 atoms.
+Output: temp_coords.bin
+
+================ INITIALIZING SIMULATION ================
+Converting input file via Python script...
+Loaded 2048 atoms from ./input/random_particles-2048.pdb
+Bounds: dx = 377.690  dy = 377.843  dz = 377.757
+Simulation box L = 377.843
+rc = 30.000, dt = 0.00100, steps = 2000
+
+================ BEGINNING AUTOTUNING ================
+
+================ FULL O(N^2) GPU (2000 steps) ================
+Full O(N^2) done.   Time: 7.735069 s
+
+================ CELL-LIST GPU (2000 steps) ================
+Cell-list done.     Time: 1.414739 s
+
+================ NEIGHBOR-LIST GPU (2000 steps) ================
+Neighbor-list done. Time: 0.322318 s
+
+================ MANHATTAN CELL-LIST GPU (2000 steps) ================
+Manhattan done.     Time: 0.579932 s
+
+========================================
+PERFORMANCE COMPARISON
+========================================
+Full O(N^2):   7.735069 s
+Cell-list:     1.414739 s  (5.47x)
+Neighbor-list: 0.322318 s  (24.00x)
+Manhattan:     0.579932 s  (13.34x)
+========================================
+FASTEST: NEIGHBOR-LIST GPU
+
+================ FULL RUN — NEIGHBOR-LIST GPU (4000 steps) ================
+Full run done. Time: 0.641317 s
+Output: output/final_energies.csv, output/final_positions.pdb
+
+All simulations complete.

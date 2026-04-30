@@ -1,21 +1,23 @@
 # ================================
 #   Makefile for MD Engine GPU
 # ================================
-
 NVCC      = nvcc
 NVCCFLAGS = -O3 -arch=sm_86 -Iinclude -rdc=true
-
 TARGET    = md_run
 DLINK_OBJ = device_link.o
 
-SRC = src/main.cu src/cuda_cell_list.cu src/cuda_nbl.cu src/cuda_full.cu \
-      src/gpu_manhattan_cell_cap.cu src/cell_list.c src/md_io.c
-OBJ = $(patsubst src/%.cu,src/%.o,$(patsubst src/%.c,src/%.o,$(SRC)))
+CU_SRC  = src/main.cu src/cuda_cell_list.cu src/cuda_nbl.cu src/cuda_full.cu \
+           src/gpu_manhattan_cell_cap.cu
+C_SRC   = src/md_io.c src/cell_list.c
+
+CU_OBJ  = $(CU_SRC:src/%.cu=src/%.o)
+C_OBJ   = $(C_SRC:src/%.c=src/%.o)
+OBJ     = $(CU_OBJ) $(C_OBJ)
 
 # -----------------------------------------
-# Default build
+# Default build (no parallel — avoids rdc race)
 # -----------------------------------------
-MAKEFLAGS += -j4
+.NOTPARALLEL:
 
 all: output $(TARGET)
 
@@ -23,10 +25,10 @@ $(TARGET): $(OBJ) $(DLINK_OBJ)
 	$(NVCC) -arch=sm_86 $(OBJ) $(DLINK_OBJ) -o $(TARGET) -lm
 
 # -----------------------------------------
-# Device link step
+# Device link step (CUDA objects only, not C)
 # -----------------------------------------
-$(DLINK_OBJ): $(OBJ)
-	$(NVCC) -arch=sm_86 -dlink $(OBJ) -o $(DLINK_OBJ)
+$(DLINK_OBJ): $(CU_OBJ)
+	$(NVCC) -arch=sm_86 -dlink $(CU_OBJ) -o $(DLINK_OBJ)
 
 # -----------------------------------------
 # Compile CUDA sources
@@ -49,6 +51,12 @@ output:
 # -----------------------------------------
 # Run simulation
 # -----------------------------------------
+BINARY     ?= ./md_run
+INPUT_FILE ?= input/random_particles-1024.pdb
+INPUT_DIR  ?= ./input
+OUTPUT_DIR ?= ./results
+PYTHON     ?= python3
+
 run: $(TARGET) output
 	$(BINARY) $(INPUT_FILE)
 
@@ -58,7 +66,7 @@ run: $(TARGET) output
 PLOT_ENERGY_SCRIPT := test/plot_energy.py
 
 .PHONY: plot
-plot: run
+plot:
 	@echo "Plotting energy from output/ ..."
 	$(PYTHON) $(PLOT_ENERGY_SCRIPT)
 	@echo "Energy plots saved to output/"
@@ -69,7 +77,7 @@ plot: run
 COMPARE_SCRIPT := test/compare_pdbs.py
 
 .PHONY: compare
-compare: run
+compare:
 	@echo "Comparing PDB positions in output/ ..."
 	$(PYTHON) $(COMPARE_SCRIPT)
 	@echo "Comparison saved to output/pdb_comparison.txt"
@@ -84,16 +92,9 @@ clean:
 # -----------------------------------------
 # Sweep & plotting
 # -----------------------------------------
-# Override on command line: make sweep INPUT_DIR=./myinput
-BINARY      ?= ./md_run
-INPUT_FILE  ?= input/random_particles-1024.pdb
-INPUT_DIR   ?= ./input
-OUTPUT_DIR  ?= ./results
-PYTHON      ?= python3
 SWEEP_SCRIPT := run_sweep_gpu.sh
 PLOT_SCRIPT  := test/plot_results_gpu.py
 
-# sweep: build, run all particle counts, then plot
 .PHONY: sweep
 sweep: $(TARGET) $(SWEEP_SCRIPT) $(PLOT_SCRIPT)
 	@echo "Starting GPU sweep: binary=$(BINARY) input=$(INPUT_DIR) output=$(OUTPUT_DIR)"
@@ -103,14 +104,18 @@ sweep: $(TARGET) $(SWEEP_SCRIPT) $(PLOT_SCRIPT)
 	    --input-dir  $(INPUT_DIR)  \
 	    --output-dir $(OUTPUT_DIR)
 
-# insights: replot from existing CSV without rerunning
+# -----------------------------------------
+# Insights: replot from existing CSV
+# -----------------------------------------
 .PHONY: insights
 insights: $(PLOT_SCRIPT) $(OUTPUT_DIR)/timings.csv
 	@echo "Regenerating plots from $(OUTPUT_DIR)/timings.csv ..."
 	$(PYTHON) $(PLOT_SCRIPT) $(OUTPUT_DIR)/timings.csv $(OUTPUT_DIR)/plots
 	@echo "Plots saved to $(OUTPUT_DIR)/plots/"
 
-# sweep-clean: wipe results directory
+# -----------------------------------------
+# Sweep clean
+# -----------------------------------------
 .PHONY: sweep-clean
 sweep-clean:
 	@echo "Removing $(OUTPUT_DIR)/ ..."

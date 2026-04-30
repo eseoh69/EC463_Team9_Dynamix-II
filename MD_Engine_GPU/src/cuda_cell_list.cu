@@ -243,6 +243,7 @@ double cuda_cell_list(const SimParams *sp, Particle *p, FILE *f_energy, int nste
                                                     cellSize, numParticles);
         CUDA_CHECK(cudaDeviceSynchronize());
 
+        thrust::sequence(thrust::device, d_indices, d_indices + numParticles);
         thrust::sort_by_key(d_keys, d_keys + numParticles, d_vals);
 
         CUDA_CHECK(cudaMemset(d_cellStart, -1, numCells * sizeof(int)));
@@ -270,6 +271,7 @@ double cuda_cell_list(const SimParams *sp, Particle *p, FILE *f_energy, int nste
                                                     cellSize, numParticles);
         CUDA_CHECK(cudaDeviceSynchronize());
 
+        thrust::sequence(thrust::device, d_indices, d_indices + numParticles);
         thrust::sort_by_key(d_keys, d_keys + numParticles, d_vals);
 
         CUDA_CHECK(cudaMemset(d_cellStart, -1, numCells * sizeof(int)));
