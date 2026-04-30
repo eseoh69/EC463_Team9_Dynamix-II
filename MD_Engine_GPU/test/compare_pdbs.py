@@ -15,11 +15,11 @@ def load_pdb(path):
     return np.array(coords)
 
 datasets = [
-    ("Full O(N2)",    "output/full_positions.pdb"),
-    ("Cell-list",     "output/cell_positions.pdb"),
-    ("Neighbor-list", "output/nbl_positions.pdb"),
+    ("Full O(N2)",          "output/full_positions.pdb"),
+    ("Cell-list",           "output/cell_positions.pdb"),
+    ("Neighbor-list",       "output/nbl_positions.pdb"),
     ("Manhattan-cell-list", "output/manhattan_positions.pdb"),
-    ("Final run",     "output/final_positions.pdb"),
+    ("Final run",           "output/final_positions.pdb"),
 ]
 
 loaded = [(label, load_pdb(path)) for label, path in datasets if os.path.exists(path)]
@@ -27,6 +27,15 @@ loaded = [(label, load_pdb(path)) for label, path in datasets if os.path.exists(
 if not loaded:
     print("No PDB files found in output/. Run the simulation first.")
     exit(1)
+
+# Auto-detect input file based on particle count of first loaded dataset
+n_particles = len(loaded[0][1])
+input_path = f"input/random_particles-{n_particles}.pdb"
+if os.path.exists(input_path):
+    loaded = [("Input", load_pdb(input_path))] + loaded
+    print(f"Auto-detected input: {input_path} ({n_particles} particles)")
+else:
+    print(f"Warning: could not find matching input file {input_path}, skipping input comparison.")
 
 with open("output/pdb_comparison.txt", "w") as f:
     f.write("=== PDB POSITION COMPARISON ===\n\n")

@@ -1,5 +1,30 @@
 === PDB POSITION COMPARISON ===
 
+Input vs Full O(N2):
+  mean deviation : 0.0063%
+  max  deviation : 94.9212%
+  std  deviation : 0.7220%
+
+Input vs Cell-list:
+  mean deviation : 0.0063%
+  max  deviation : 94.9212%
+  std  deviation : 0.7220%
+
+Input vs Neighbor-list:
+  mean deviation : 0.0063%
+  max  deviation : 94.9212%
+  std  deviation : 0.7220%
+
+Input vs Manhattan-cell-list:
+  mean deviation : 0.0063%
+  max  deviation : 94.9212%
+  std  deviation : 0.7220%
+
+Input vs Final run:
+  mean deviation : 0.0068%
+  max  deviation : 94.9212%
+  std  deviation : 0.7234%
+
 Full O(N2) vs Cell-list:
   mean deviation : 0.0000%
   max  deviation : 0.0000%
@@ -12,13 +37,13 @@ Full O(N2) vs Neighbor-list:
 
 Full O(N2) vs Manhattan-cell-list:
   mean deviation : 0.0000%
-  max  deviation : 0.0004%
-  std  deviation : 0.0000%
+  max  deviation : 0.0084%
+  std  deviation : 0.0001%
 
 Full O(N2) vs Final run:
-  mean deviation : 0.0002%
-  max  deviation : 0.6618%
-  std  deviation : 0.0054%
+  mean deviation : 0.0010%
+  max  deviation : 3.3205%
+  std  deviation : 0.0271%
 
 Cell-list vs Neighbor-list:
   mean deviation : 0.0000%
@@ -27,26 +52,26 @@ Cell-list vs Neighbor-list:
 
 Cell-list vs Manhattan-cell-list:
   mean deviation : 0.0000%
-  max  deviation : 0.0004%
-  std  deviation : 0.0000%
+  max  deviation : 0.0084%
+  std  deviation : 0.0001%
 
 Cell-list vs Final run:
-  mean deviation : 0.0002%
-  max  deviation : 0.6618%
-  std  deviation : 0.0054%
+  mean deviation : 0.0010%
+  max  deviation : 3.3205%
+  std  deviation : 0.0271%
 
 Neighbor-list vs Manhattan-cell-list:
   mean deviation : 0.0000%
-  max  deviation : 0.0004%
-  std  deviation : 0.0000%
+  max  deviation : 0.0084%
+  std  deviation : 0.0001%
 
 Neighbor-list vs Final run:
-  mean deviation : 0.0002%
-  max  deviation : 0.6618%
-  std  deviation : 0.0054%
+  mean deviation : 0.0010%
+  max  deviation : 3.3205%
+  std  deviation : 0.0271%
 
 Manhattan-cell-list vs Final run:
-  mean deviation : 0.0002%
-  max  deviation : 0.6617%
-  std  deviation : 0.0054%
+  mean deviation : 0.0010%
+  max  deviation : 3.3198%
+  std  deviation : 0.0271%
 
