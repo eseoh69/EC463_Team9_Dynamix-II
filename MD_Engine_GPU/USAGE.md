@@ -17,16 +17,20 @@ cd EC463_Team9_Dynamix-II
 
 ```bash
 git checkout md_engine_gpu
-cd md_engine_gpu
+cd MD_Engine_GPU
 ```
 
 ## 4. Request a GPU Node
 
 ```bash
-qrsh -l gpus=1 -l gpu_type=A40 -P ece601
+qrsh -l gpus=1 -l gpu_type=L40S -P ece601
 ```
 
-> After the session starts, navigate back to the `MD_Engine_GPU` directory.
+> After the session starts, navigate back to the `MD_Engine_GPU` directory:
+
+```bash
+cd /usr4/ugrad/eseoh/EC463_Team9_Dynamix-II/MD_Engine_GPU
+```
 
 ## 5. Set Up Python Environment
 
@@ -50,7 +54,7 @@ make clean
 make
 ```
 
-The build runs with `-j4` parallel compilation. The `output/` directory is created automatically if it doesn't exist.
+The `output/` directory is created automatically if it doesn't exist.
 
 ## 8. Run
 
@@ -65,21 +69,15 @@ make run INPUT_FILE=input/random_particles-4096.pdb
 ```
 
 The default input is `input/random_particles-1024.pdb`. Output files are written to `output/`:
-- `full_energies.csv`, `cell_energies.csv`, `nbl_energies.csv`, `manhattan_cell_energies.csv`, `final_energies.csv`
-- `full_positions.pdb`, `cell_positions.pdb`, `nbl_positions.pdb`, `final_positions.pdb`
+- `full_energies.csv`, `cell_energies.csv`, `nbl_energies.csv`, `manhattan_energies.csv`, `final_energies.csv`
+- `full_positions.pdb`, `cell_positions.pdb`, `nbl_positions.pdb`, `manhattan_positions.pdb`, `final_positions.pdb`
 
 ## 9. Visualize Energy
 
-Builds and runs the simulation (if not already done), then plots kinetic, potential, and total energy over time for each algorithm. Plots and a drift summary are saved to `output/`.
+Plots kinetic, potential, and total energy over time for each algorithm. Run the simulation first with `make run`, then:
 
 ```bash
 make plot
-```
-
-You can override the input file the same way as `make run`:
-
-```bash
-make plot INPUT_FILE=input/random_particles-4096.pdb
 ```
 
 Output saved to `output/`:
@@ -88,7 +86,7 @@ Output saved to `output/`:
 
 ## 10. Compare Final Positions
 
-Builds and runs the simulation (if not already done), then computes per-particle positional deviation between all algorithm pairs.
+Computes per-particle positional deviation between all algorithm pairs, including the original input file. The input PDB is auto-detected by matching particle count. Run the simulation first with `make run`, then:
 
 ```bash
 make compare
