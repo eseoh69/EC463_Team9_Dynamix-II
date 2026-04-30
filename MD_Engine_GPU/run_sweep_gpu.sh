@@ -139,7 +139,7 @@ echo "Sweep complete. Results: $CSV"
 echo "Generating plots..."
 echo "============================================================"
 
-python3 plot_results_gpu.py "$CSV" "$OUTPUT_DIR/plots"
+python3 test/plot_results_gpu.py "$CSV" "$OUTPUT_DIR/plots"
 
 echo ""
 echo "Done. Plots saved to: $OUTPUT_DIR/plots/"
