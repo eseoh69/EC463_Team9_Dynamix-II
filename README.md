@@ -161,7 +161,7 @@ python3 scripts/plot_energy.py
 
 Output validation. By default checks CPU outputs only, can be changed in the file.
 ```bash
-python3 scripts/compare_all.py
+python3 scripts/compare_all_pdbs.py
 ```
 
 Notes:
