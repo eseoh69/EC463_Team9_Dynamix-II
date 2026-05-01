@@ -1,4 +1,0 @@
-/Users/danielhenain/Desktop/MD_Engine_testing2/venv/lib/python3.12/site-packages/MDAnalysis/topology/PDBParser.py:372: UserWarning: Unknown element X found for some atoms. These have been given an empty element record. If needed they can be guessed using universe.guess_TopologyAttrs(context='default', to_guess=['elements']).
-  warnings.warn(wmsg)
-Successfully converted 32768 atoms.
-Output: temp_coords.bin
