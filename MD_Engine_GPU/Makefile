@@ -1,10 +1,19 @@
-# ================================
-#   Makefile for MD Engine GPU
-# ================================
+
+#########################################
+#### ENTER PYTHON PATH HERE ####
+#########################################
+
+PYTHON  = python3     # for plot_lj.py
+
+#########################################
+#########################################
+
 NVCC      = nvcc
 NVCCFLAGS = -O3 -arch=sm_86 -Iinclude -rdc=true
 TARGET    = md_run
 DLINK_OBJ = device_link.o
+
+NVCCFLAGS += -DPYTHON='"$(PYTHON)"'
 
 CU_SRC  = src/main.cu src/cuda_cell_list.cu src/cuda_nbl.cu src/cuda_full.cu \
            src/gpu_manhattan_cell_cap.cu

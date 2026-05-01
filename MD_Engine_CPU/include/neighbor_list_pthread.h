@@ -12,24 +12,24 @@
  * Compile with: -pthread -DNBL_NUM_THREADS=8
  */
 
-void nbl_pthread_init(size_t N,  nthreads);
+void nbl_pthread_init(size_t N, int nthreads);
 void nbl_pthread_cleanup(void);
 
 void nbl_build_pthread(NeighborList *nl, CellList *cl, Particle *p,
-                       double L, double rc, size_t N, nthreads);
+                       double L, double rc, size_t N, int nthreads);
 
 double md_compute_forces_nbl_pthread(Particle *p,
                                      const SimParams *sp,
-                                     const NeighborList *nl, nthreads);
+                                     const NeighborList *nl, int nthreads);
 
 double md_integrate_nbl_pthread(Particle *p,
                                 const SimParams *sp,
                                 NeighborList *nl,
                                 CellList *cl,
-                                double *Kout, nthreads);
+                                double *Kout, int nthreads);
 
 int nbl_pthread_get_num_threads(void);
 void nbl_pthread_print_info(void);
-size_t nbl_pthread_memory_usage(size_t N, nthreads);
+size_t nbl_pthread_memory_usage(size_t N, int nthreads);
 
 #endif /* NEIGHBOR_LIST_PTHREAD_H */

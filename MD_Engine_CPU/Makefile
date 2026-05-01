@@ -1,21 +1,25 @@
-# ================================
-#   Makefile for LJ MD Engine
-#   With Pthreads Support (CPU only)
-# ================================
+#########################################
+#### ENTER PYTHON PYTHON PATH HERE ####
+#########################################
+
+PYTHON  = python3
+
+#########################################
+#########################################
 
 CC      = gcc
-CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude -pthread
+CFLAGS  = -O2 -std=gnu11 -Wall -Wextra -Iinclude -pthread
 LDFLAGS = -lm -lpthread
 
 CXX     = g++
 CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
 
-PYTHON  = python3     # for plot_lj.py
-
 # Number of threads for pthread neighbor list (default: 4)
 # Override with: make NTHREADS=8
 NTHREADS ?= 4
 CFLAGS += -DNBL_NUM_THREADS=$(NTHREADS)
+
+CFLAGS += -DPYTHON='"$(PYTHON)"'
 
 SRC = \
     src/main.c \

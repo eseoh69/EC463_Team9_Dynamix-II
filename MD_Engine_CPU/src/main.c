@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 
     printf("Converting input file via Python script...\n");
     char command[256];
-    sprintf(command, "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt", input_path);
+    sprintf(command, "%s src/py/converter.py %s temp_coords.bin temp_metadata.txt", PYTHON, input_path);
     int status = system(command);
 
     if (status != 0) {

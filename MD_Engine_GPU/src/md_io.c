@@ -50,8 +50,8 @@ int read_input(const char *input_path, Particle **p0, SimParams *sp)
     printf("Converting input file via Python script...\n");
     char command[256];
     snprintf(command, sizeof(command),
-             "./venv/bin/python3 src/py/converter.py %s temp_coords.bin temp_metadata.txt",
-             input_path);
+             "%s src/py/converter.py %s temp_coords.bin temp_metadata.txt",
+             PYTHON, input_path);
     int status = system(command);
     if (status != 0) {
         fprintf(stderr, "Error: Python conversion failed.\n");
