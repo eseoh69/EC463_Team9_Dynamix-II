@@ -50,5 +50,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Python virtual environment 
-venv/
+# Local setup
+/.vscode
+.DS_Store
+/venv
