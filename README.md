@@ -4,7 +4,7 @@
 <img src="./images/team_9_4-9.png" width="50%">
 </p>
 <p align="center">
-This is my team
+Team Photo
 </p>
 
 ## Blurb
@@ -62,8 +62,9 @@ Install your package to your preferred location (system wide install, venv, cond
 ```
 pip install MDAnalysis==2.10.0 # note: MDAnalysis 2.10.0 needs Python 3.11.0 or later
 ```
-Set the ```PYTHON``` variable in ```cpu/Makefile``` and ```gpu/Makefile``` to the python path where MDAnalysis is installed.
+Using a text editor, set the ```PYTHON``` variable in ```cpu/Makefile``` and ```gpu/Makefile``` to the python path where MDAnalysis is installed.
 By default, it is set to ```python3```. If using a venv, your path would be ```<abs path to venv>/bin/python3```.
+
 
 3. Build the CPU version:
 
@@ -158,9 +159,10 @@ For conservation of energy plots:
 python3 scripts/plot_energy.py
 ```
 
-Output validation. By default checks CPU outputs only.
+Output validation. By default checks CPU outputs only, can be changed in the file.
 ```bash
 python3 scripts/compare_all.py
 ```
 
-- Output files are written under your current directory's `output/` and `results/` directories.
+Notes:
+- Output files are written to your current directory's `output/` and `results/` directories.
