@@ -2,6 +2,7 @@
 #define MD_H
 
 #include <stddef.h>
+#include <math.h>
 
 //
 // Particle structure — OLD FORMAT
@@ -35,8 +36,7 @@ typedef struct {
 //
 static inline void md_minimage(double *d, double L)
 {
-    if (*d >  0.5*L) *d -= L;
-    if (*d < -0.5*L) *d += L;
+    *d -= L * nearbyint((*d) / L);
 }
 
 //
@@ -46,10 +46,20 @@ struct CellList;
 struct NeighborList;
 
 //
+// Velocity initialization — Maxwell-Boltzmann at temperature kT (LJ units).
+// Removes center-of-mass drift. Call once before any integration.
+//
+void md_init_velocities(Particle *p, size_t N, double kT, unsigned long seed);
+
+//
 // FULL MD
 //
 double md_compute_forces_full(Particle *p, const SimParams *sp);
 double md_integrate_full(Particle *p, const SimParams *sp, double *Kout);
+
+
+double md_compute_forces_full_pthreads(Particle *p, const SimParams *sp, int nthreads);
+double md_integrate_full_pthreads(Particle *p, const SimParams *sp, double *Kout, int nthreads);
 
 //
 // CELL-LIST MD

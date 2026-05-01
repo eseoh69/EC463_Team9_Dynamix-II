@@ -1,0 +1,12 @@
+Error: '' isn't a valid topology format, nor a coordinate format
+   from which a topology can be minimally inferred.
+   You can use 'Universe(topology, ..., topology_format=FORMAT)'
+   to explicitly specify the format and
+   override automatic detection. Known FORMATs are:
+   dict_keys(['PSF', 'TOP', 'PRMTOP', 'PARM7', 'PDB', 'ENT', 'XPDB', 'PQR', 'GRO', 'CRD', 'PDBQT', 'DMS', 'TPR', 'MOL2', 'DATA', 'LAMMPSDUMP', 'XYZ', 'TXYZ', 'ARC', 'GMS', 'CONFIG', 'HISTORY', 'XML', 'MMTF', 'GSD', 'MINIMAL', 'ITP', 'IN', 'FHIAIMS', 'PARMED', 'RDKIT', 'OPENMMTOPOLOGY', 'OPENMMAPP'])
+   See https://docs.mdanalysis.org/documentation_pages/topology/init.html#supported-topology-formats
+   For missing formats, raise an issue at 
+   https://github.com/MDAnalysis/mdanalysis/issues
+
+================ INITIALIZING SIMULATION ================
+Converting input file via Python script...

@@ -53,4 +53,5 @@ dkms.conf
 # Local setup
 /.vscode
 .DS_Store
-/venv
+venv/
+repo_push/

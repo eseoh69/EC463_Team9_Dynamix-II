@@ -14,6 +14,8 @@ typedef struct CellList {
 
     int *counts;
     int *cells;
+    int   *cell_cap;   // capacity per cell (how many slots each cell has)
+    int    stride; 
 } CellList;
 
 //

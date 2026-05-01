@@ -22,39 +22,33 @@ static void* thread_compute_force_cell(void *arg) {
     const double tiny2 = 1e-30;
 
     double local_U = 0.0;
-    int max_cell_particles = 16;
     int neighbor_cells[27];
 
-    // iterate over cells assigned to this thread
-    for (int cell = ctx->cell_start; cell < ctx->cell_end; cell++) {
-        int base_cell = cell * max_cell_particles;
+    // IMPORTANT: use the actual stride from the CellList
+    int stride = cl->stride;
 
-        // get all 27 neighbor cell indicies (including itself)
+    for (int cell = ctx->cell_start; cell < ctx->cell_end; cell++) {
+        int base_cell = cell * stride;
+
         int n_neighbors = cl_get_neighbor_cells(cl, cell, neighbor_cells);
 
-        // iterate over particles in the current cell
         for (int a = 0; a < cl->counts[cell]; a++) {
             int i = cl->cells[base_cell + a];
             if (i < 0) continue;
 
-            // loop over neighbor cells
             for (int n = 0; n < n_neighbors; n++) {
                 int neighbor_cell = neighbor_cells[n];
 
-                // cell-level half-shell condition
-                if (neighbor_cell < cell) continue;  // skip lower-index cells
+                if (neighbor_cell < cell) continue;
 
-                int base_neighbor = neighbor_cell * max_cell_particles;
+                int base_neighbor = neighbor_cell * stride;
 
-                // loop over particles in neighbor cell
                 for (int b = 0; b < cl->counts[neighbor_cell]; b++) {
                     int j = cl->cells[base_neighbor + b];
                     if (j < 0) continue;
 
-                    // particle-level half-shell for self-cell
                     if (neighbor_cell == cell && j <= i) continue;
 
-                    // compute displacement
                     double dx = p[i].x - p[j].x;
                     double dy = p[i].y - p[j].y;
                     double dz = p[i].z - p[j].z;
@@ -64,6 +58,8 @@ static void* thread_compute_force_cell(void *arg) {
                     md_minimage(&dz, L);
 
                     double r2 = dx*dx + dy*dy + dz*dz;
+                    const double rmin2 = 0.2;  // rmin = 0.01
+                    if (r2 < rmin2) r2 = rmin2;
                     if (r2 < tiny2 || r2 > rc2) continue;
 
                     double inv_r2 = 1.0 / r2;
@@ -76,7 +72,6 @@ static void* thread_compute_force_cell(void *arg) {
                     double fy = F_over_r * dy;
                     double fz = F_over_r * dz;
 
-                    // update thread-local forces
                     ctx->local_fx[i] += fx;
                     ctx->local_fy[i] += fy;
                     ctx->local_fz[i] += fz;
@@ -90,6 +85,7 @@ static void* thread_compute_force_cell(void *arg) {
             }
         }
     }
+
     ctx->local_U = local_U;
     return NULL;
 }

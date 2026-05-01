@@ -8,13 +8,13 @@
 // Proper named struct
 //
 typedef struct NeighborList {
-    int *nb;
-    int *nb_index;
-    int total;
-
-    double skin;
-
+    size_t N;
+    int   *nb;
+    int   *nb_index;
     Particle *prev;
+    int total;
+    int cap;
+    double skin;
 } NeighborList;
 
 void nbl_init(NeighborList *nl, size_t N, double rc, double skin);

@@ -1,10 +1,6 @@
 #ifndef PDB_IMPORTER_H
 #define PDB_IMPORTER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "md.h"
 
 //
@@ -24,11 +20,4 @@ int binary_importer(const char *path,
                  double *xmin, double *xmax,
                  double *ymin, double *ymax,
                  double *zmin, double *zmax);
-
-int read_input (const char * input_path,Particle ** p0, SimParams * sp);
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif

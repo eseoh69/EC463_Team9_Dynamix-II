@@ -2,7 +2,7 @@ import numpy as np
 import re
 
 # ============================================================
-# Load coordinates from PDB (robust)
+# Load coordinates from PDB
 # ============================================================
 def load_pdb(path):
     coords = []
@@ -12,23 +12,18 @@ def load_pdb(path):
             for line in f:
                 if not atom_pattern.search(line):
                     continue
-
-                # Extract using fixed columns
                 try:
                     x = float(line[30:38])
                     y = float(line[38:46])
                     z = float(line[46:54])
                     coords.append([x, y, z])
                 except:
-                    # fallback: split-based extraction
                     parts = line.split()
                     nums = [p for p in parts if re.match(r'^-?\d+(\.\d*)?$', p)]
                     if len(nums) >= 3:
                         coords.append([float(nums[-3]), float(nums[-2]), float(nums[-1])])
     except FileNotFoundError:
-        print(f"ERROR: file not found: {path}")
         return np.zeros((0, 3))
-
     return np.array(coords)
 
 
@@ -36,69 +31,102 @@ def load_pdb(path):
 # RMSD metrics
 # ============================================================
 def compute_metrics(A, B):
-    """Return RMSD, mean abs error, max deviation."""
     n = min(len(A), len(B))
     if n == 0:
         return None
-
-    A = A[:n]
-    B = B[:n]
-
-    diff = A - B
+    diff = A[:n] - B[:n]
     dists = np.linalg.norm(diff, axis=1)
-
     return {
-        "N compared": n,
-        "RMSD": float(np.sqrt((dists ** 2).mean())),
+        "N":              n,
+        "RMSD":           float(np.sqrt((dists ** 2).mean())),
         "Mean abs error": float(dists.mean()),
-        "Max deviation": float(dists.max()),
+        "Max deviation":  float(dists.max()),
     }
 
 
 # ============================================================
-# MAIN
+# All output files
 # ============================================================
-input_path = "input.pdb"
-full_path  = "output/full_positions.pdb"
-cell_path  = "output/cell_positions.pdb"
-nbl_path   = "output/nbl_positions.pdb"
-
-files = {
-    "input": load_pdb(input_path),
-    "full":  load_pdb(full_path),
-    "cell":  load_pdb(cell_path),
-    "nbl":   load_pdb(nbl_path),
+outputs = {
+    "full":             "output/full_positions.pdb",
+    "cell":             "output/cell_positions.pdb",
+    "nbl":              "output/nbl_positions.pdb",
+    "full_pthread":     "output/full_pthread_positions.pdb",
+    "cell_half_mt":     "output/cell_half_mt_positions.pdb",
+    "nbl_pthread":      "output/nbl_pthread_positions.pdb",
+    "manhattan_pthread":"output/manhattan_pthread_positions.pdb",
+    "manhat":           "output/manhat_positions.pdb",
+    "final":            "output/final_positions.pdb",
 }
 
-# ------------------------------------------------------------
-# Atom counts
-# ------------------------------------------------------------
-print("=== Atom Counts ===")
-for name, arr in files.items():
-    print(f"{name:6s}: {len(arr)} atoms")
+print("=== Loading PDB files ===")
+data = {}
+for name, path in outputs.items():
+    arr = load_pdb(path)
+    status = f"{len(arr)} atoms" if len(arr) > 0 else "MISSING"
+    print(f"  {name:22s}: {status}  ({path})")
+    data[name] = arr
 print()
 
-# ------------------------------------------------------------
-# Pairwise RMSD comparisons
-# ------------------------------------------------------------
+# ============================================================
+# Section 1: All methods vs FULL (reference)
+# ============================================================
+print("=" * 60)
+print("1) All methods vs FULL O(N^2) (reference)")
+print("=" * 60)
+ref = "full"
+for name, arr in data.items():
+    if name == ref:
+        continue
+    m = compute_metrics(data[ref], arr)
+    if m is None:
+        print(f"  {name:22s}: MISSING or empty")
+        continue
+    print(f"\n  {name:22s} vs {ref}:")
+    for k, v in m.items():
+        print(f"    {k:16s}: {v:.6f}" if isinstance(v, float) else f"    {k:16s}: {v}")
+
+# ============================================================
+# Section 2: Serial vs Pthread pairs (correctness check)
+# ============================================================
+print()
+print("=" * 60)
+print("2) Serial vs Pthread equivalents (correctness check)")
+print("=" * 60)
+
 pairs = [
-    ("input", "full"),
-    ("input", "cell"),
-    ("input", "nbl"),
-    ("full",  "cell"),
-    ("full",  "nbl"),
-    ("cell",  "nbl"),
+    ("full",        "full_pthread",      "FULL serial vs FULL pthread"),
+    ("cell",        "cell_half_mt",      "CELL serial vs CELL half-shell pthread"),
+    ("nbl",         "nbl_pthread",       "NBL serial vs NBL pthread"),
+    ("manhattan_pthread", "manhat",      "Manhattan pthread vs Manhattan serial"),
 ]
 
-print("=== Pairwise Differences (RMSD) ===")
-for A, B in pairs:
-    print(f"\nComparing {A} vs {B}...")
-    metrics = compute_metrics(files[A], files[B])
-    if metrics is None:
-        print("  ERROR: No overlapping atoms!")
+for A, B, label in pairs:
+    m = compute_metrics(data[A], data[B])
+    if m is None:
+        print(f"\n  {label}: MISSING data")
         continue
+    print(f"\n  {label}:")
+    for k, v in m.items():
+        print(f"    {k:16s}: {v:.6f}" if isinstance(v, float) else f"    {k:16s}: {v}")
 
-    for k, v in metrics.items():
-        print(f"  {k:16s}: {v}")
+# ============================================================
+# Section 3: Final vs all methods
+# ============================================================
+print()
+print("=" * 60)
+print("3) FINAL simulation vs all autotuning outputs")
+print("=" * 60)
+
+for name, arr in data.items():
+    if name == "final":
+        continue
+    m = compute_metrics(data["final"], arr)
+    if m is None:
+        print(f"  final vs {name:22s}: MISSING or empty")
+        continue
+    print(f"\n  final vs {name:22s}:")
+    for k, v in m.items():
+        print(f"    {k:16s}: {v:.6f}" if isinstance(v, float) else f"    {k:16s}: {v}")
 
 print("\nDone.\n")
