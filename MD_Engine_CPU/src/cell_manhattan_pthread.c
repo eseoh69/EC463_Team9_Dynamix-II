@@ -5,11 +5,6 @@
 #include <math.h>
 #include <string.h>
 
-#ifndef CELL_CAP
-// MUST match your CellList fixed capacity per cell.
-// Your existing code uses 16 in multiple places.
-#define CELL_CAP 16
-#endif
 
 static inline int cell_index(int ix, int iy, int iz, int nc) {
     return ix + nc * (iy + nc * iz);
@@ -75,7 +70,7 @@ static void* thread_compute_force_manhattan(void *arg) {
 
         neighbors_27(cl, cell, neigh);
 
-        const int base_cell = cell * CELL_CAP;
+        const int base_cell = cell * cl->stride;
 
         for (int a = 0; a < cl->counts[cell]; a++) {
             const int i = cl->cells[base_cell + a];
@@ -87,7 +82,7 @@ static void* thread_compute_force_manhattan(void *arg) {
                 // Cell-level half-shell: only compute each cell-pair once
                 if (nb < cell) continue;
 
-                const int base_nb = nb * CELL_CAP;
+                const int base_nb = nb * cl->stride;
 
                 for (int b = 0; b < cl->counts[nb]; b++) {
                     const int j = cl->cells[base_nb + b];

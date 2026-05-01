@@ -3,9 +3,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#ifndef CELL_CAP
-#define CELL_CAP 16
-#endif
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,7 +91,7 @@ double md_compute_forces_manhat(
         for (int n = 0; n < 27; n++) {
             const int c    = neigh[n];
             const int cnt  = cl->counts[c];
-            const int base = c * CELL_CAP;
+            const int base = c * cl -> stride;
 
             for (int k = 0; k < cnt; k++) {
                 const int j = cl->cells[base + k];
