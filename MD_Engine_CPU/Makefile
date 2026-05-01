@@ -4,7 +4,7 @@
 # ================================
 
 CC      = gcc
-CFLAGS  = -O2 -std=c11 -Wall -Wextra -Iinclude -pthread
+CFLAGS  = -O2 -std=gnu11 -Wall -Wextra -Iinclude -pthread
 LDFLAGS = -lm -lpthread
 
 CXX     = g++
