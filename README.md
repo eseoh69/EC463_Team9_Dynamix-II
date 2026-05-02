@@ -41,7 +41,7 @@ Below is a high-level file tree for the repository:
   - `plot_results_cpu.py`, `plot_results_gpu.py`, plot speedup charts for cpu and gpu
    `plot_energy.py`, plot kinetic, potential, total energy charts over course of simulation
   - `compare_pdbs.py` compare outputs
-  - `compare_pdbs_all.py` compare outputs, more features
+  - `compare_all_pdbs.py` compare outputs, more features
   - ...
 - `images/` - 
 - `input/` - shared sample input files
